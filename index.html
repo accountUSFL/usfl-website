@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US Freight Logistics LLC</title>
+<style>
+  :root{
+    --ink:#12171f;
+    --steel:#2c3646;
+    --slate:#5b6675;
+    --paper:#f5f6f4;
+    --line:#dde1e0;
+    --signal:#e8622c;
+    --white:#ffffff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    font-family:'Segoe UI',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    color:var(--ink);
+    background:var(--paper);
+    line-height:1.6;
+  }
+  a{color:inherit;}
+  .wrap{max-width:920px;margin:0 auto;padding:0 28px;}
+  header{
+    background:var(--ink);
+    color:var(--white);
+    border-bottom:3px solid var(--signal);
+  }
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:22px 28px;max-width:920px;margin:0 auto;
+    flex-wrap:wrap;gap:12px;
+  }
+  .brand{
+    font-size:1.15rem;font-weight:700;letter-spacing:.01em;
+    display:flex;align-items:center;gap:10px;
+  }
+  .brand .mark{
+    width:14px;height:14px;background:var(--signal);
+    transform:rotate(45deg);flex-shrink:0;
+  }
+  nav a{
+    color:#c7cdd6;text-decoration:none;font-size:.92rem;margin-left:22px;
+    border-bottom:1px solid transparent;
+  }
+  nav a:hover{color:var(--white);border-bottom-color:var(--signal);}
+  .hero{
+    padding:64px 28px 56px;max-width:920px;margin:0 auto;color:var(--white);
+  }
+  .eyebrow{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;
+    color:var(--signal);font-weight:700;margin-bottom:14px;
+  }
+  h1{
+    font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;line-height:1.15;
+    max-width:14ch;margin-bottom:18px;
+  }
+  .hero p{color:#c7cdd6;max-width:52ch;font-size:1.02rem;}
+  .mc-strip{
+    display:flex;gap:28px;margin-top:30px;flex-wrap:wrap;
+    border-top:1px solid #3a4453;padding-top:20px;
+  }
+  .mc-strip div{font-size:.82rem;color:#8b94a3;}
+  .mc-strip strong{display:block;color:var(--white);font-size:1rem;font-weight:700;}
+  main section{padding:52px 0;border-bottom:1px solid var(--line);}
+  main section:last-of-type{border-bottom:none;}
+  h2{
+    font-size:1.5rem;font-weight:800;margin-bottom:6px;color:var(--ink);
+  }
+  .section-sub{color:var(--slate);font-size:.92rem;margin-bottom:28px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  .card{
+    background:var(--white);border:1px solid var(--line);padding:22px;
+  }
+  .card .num{
+    font-size:.78rem;color:var(--signal);font-weight:700;letter-spacing:.06em;
+    margin-bottom:10px;
+  }
+  .card h3{font-size:1.02rem;margin-bottom:8px;font-weight:700;}
+  .card p{font-size:.9rem;color:var(--slate);}
+  .contact-row{display:flex;gap:40px;flex-wrap:wrap;}
+  .contact-row div{flex:1;min-width:220px;}
+  .contact-row h3{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--slate);margin-bottom:8px;}
+  .contact-row p{font-size:1rem;font-weight:600;}
+  .legal h2{font-size:1.3rem;}
+  .legal h3{font-size:1rem;font-weight:700;margin:26px 0 8px;}
+  .legal p, .legal li{color:var(--steel);font-size:.94rem;margin-bottom:10px;}
+  .legal ul{padding-left:22px;margin-bottom:10px;}
+  .callout{
+    background:var(--white);border-left:3px solid var(--signal);
+    padding:16px 20px;margin:16px 0;font-size:.92rem;color:var(--steel);
+  }
+  footer{
+    background:var(--ink);color:#8b94a3;padding:30px 28px;font-size:.82rem;
+  }
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  footer a{color:#c7cdd6;text-decoration:none;margin-left:16px;}
+  footer a:hover{color:var(--white);}
+  @media (max-width:720px){
+    .grid3{grid-template-columns:1fr;}
+    nav{width:100%;display:flex;justify-content:space-between;}
+    nav a{margin-left:0;}
+    footer .wrap{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div class="brand"><span class="mark"></span>US Freight Logistics LLC</div>
+    <nav>
+      <a href="#services">Services</a>
+      <a href="#contact">Contact</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#terms">Terms</a>
+    </nav>
+  </div>
+  <div class="hero">
+    <div class="eyebrow">Licensed Motor Carrier</div>
+    <h1>Freight moved on schedule, coast to coast.</h1>
+    <p>US Freight Logistics LLC is a licensed motor carrier operating throughout the United States, coordinating dry van and refrigerated freight with a dedicated contractor driver network.</p>
+    <div class="mc-strip">
+      <div><strong>MC 1314518</strong>Motor Carrier Number</div>
+      <div><strong>USDOT 3727542</strong>DOT Number</div>
+      <div><strong>Flagstaff, AZ</strong>Operating Address</div>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <section id="services">
+      <h2>What we do</h2>
+      <p class="section-sub">Full truckload freight services, coordinated through a network of independent contractor drivers.</p>
+      <div class="grid3">
+        <div class="card">
+          <div class="num">01</div>
+          <h3>Truckload Dispatch</h3>
+          <p>Load matching and dispatch coordination for full truckload freight across the continental US.</p>
+        </div>
+        <div class="card">
+          <div class="num">02</div>
+          <h3>Carrier Operations</h3>
+          <p>Route planning, trip tracking, and driver communication handled by our operations team.</p>
+        </div>
+        <div class="card">
+          <div class="num">03</div>
+          <h3>Contractor Network</h3>
+          <p>A vetted fleet of independent contractor drivers paid per completed trip.</p>
+        </div>
+      </div>
+    </section>
+    <section id="contact">
+      <h2>Contact</h2>
+      <p class="section-sub">Reach our operations team directly.</p>
+      <div class="contact-row">
+        <div>
+          <h3>Company</h3>
+          <p>US Freight Logistics LLC</p>
+        </div>
+        <div>
+          <h3>Email</h3>
+          <p>account@usfltransit.com</p>
+        </div>
+        <div>
+          <h3>Business Address</h3>
+          <p>Flagstaff, AZ</p>
+        </div>
+        <div>
+          <h3>Mailing Address</h3>
+          <p>Henderson, NV</p>
+        </div>
+      </div>
+    </section>
+    <section id="privacy" class="legal">
+      <h2>Privacy Policy</h2>
+      <p class="section-sub">Last updated: July 2026</p>
+      <p>US Freight Logistics LLC ("we," "us," "our") respects your privacy. This policy explains how we collect, use, and protect information, including information related to SMS/text messaging communications.</p>
+      <h3>Information we collect</h3>
+      <p>We may collect contact information (name, phone number, email) that you provide directly, such as when communicating with our dispatch or operations team.</p>
+      <h3>SMS Messaging Data</h3>
+      <div class="callout">
+        No mobile information will be shared with third parties or affiliates for marketing or promotional purposes. Information sharing to subcontractors in support services, such as customer service, is permitted. All other use case categories exclude text messaging originator opt-in data and consent; this information will not be shared with any third parties.
+      </div>
+      <h3>How we use information</h3>
+      <ul>
+        <li>To coordinate freight dispatch and trip communications</li>
+        <li>To respond to inquiries from drivers, brokers, and partners</li>
+        <li>To send trip-related SMS/text updates to opted-in contacts</li>
+      </ul>
+      <h3>Your choices</h3>
+      <p>You may opt out of SMS communications at any time by replying STOP. For assistance, reply HELP or contact us at account@usfltransit.com.</p>
+      <h3>Contact us</h3>
+      <p>Questions about this policy can be directed to account@usfltransit.com.</p>
+    </section>
+    <section id="terms" class="legal">
+      <h2>Terms of Service</h2>
+      <p class="section-sub">Last updated: July 2026</p>
+      <h3>SMS Program Terms</h3>
+      <p>By opting in to SMS/text communications from US Freight Logistics LLC, you agree to receive trip, dispatch, and account-related text messages.</p>
+      <ul>
+        <li><strong>Message frequency</strong> varies based on trip and account activity.</li>
+        <li><strong>Message and data rates</strong> may apply.</li>
+        <li>Reply <strong>STOP</strong> to opt out of messages at any time.</li>
+        <li>Reply <strong>HELP</strong> for assistance or contact account@usfltransit.com.</li>
+        <li>Carriers are not liable for delayed or undelivered messages.</li>
+      </ul>
+      <h3>General use</h3>
+      <p>This website provides general information about US Freight Logistics LLC's carrier operations. Content is provided "as is" without warranties of any kind.</p>
+      <h3>Contact</h3>
+      <p>For questions about these terms, contact account@usfltransit.com.</p>
+    </section>
+  </div>
+</main>
+<footer>
+  <div class="wrap">
+    <div>&copy; 2026 US Freight Logistics LLC &mdash; MC 1314518 &middot; USDOT 3727542</div>
+    <div>
+      <a href="#privacy">Privacy Policy</a>
+      <a href="#terms">Terms of Service</a>
+    </div>
+  </div>
+</footer>
+</body>
+</html>
