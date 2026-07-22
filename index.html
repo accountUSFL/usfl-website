@@ -6,206 +6,414 @@
 <title>US Freight Logistics LLC</title>
 <style>
   :root{
-    --ink:#0f1729;
-    --slate:#5b6577;
-    --muted:#8892a3;
-    --paper:#fbfbfc;
-    --card:#ffffff;
-    --line:#e7e9ee;
-    --brand:#4f46e5;
-    --brand2:#7c3aed;
-    --accent:#f97316;
-    --white:#ffffff;
+    --navy:#0d1b3d;
+    --navy2:#132a5e;
+    --red:#e8462c;
+    --ink:#12172a;
+    --slate:#565f75;
+    --muted:#8890a0;
+    --paper:#f6f7fb;
+    --panel:#eceff5;
+    --line:#e6e8ef;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html{scroll-behavior:smooth;}
   body{
-    font-family:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+    font-family:'Segoe UI',ui-sans-serif,system-ui,-apple-system,sans-serif;
     color:var(--ink);
     background:var(--paper);
-    line-height:1.65;
-    -webkit-font-smoothing:antialiased;
+    line-height:1.6;
   }
   a{color:inherit;}
-  .wrap{max-width:1040px;margin:0 auto;padding:0 32px;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+  svg.icon{width:26px;height:26px;stroke:var(--navy);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+  /* NAV */
   header.topnav{
-    position:sticky;top:0;z-index:50;
-    background:rgba(251,251,252,.85);
-    backdrop-filter:blur(10px);
-    border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--navy);
+    z-index:50;
   }
   .topbar{
     display:flex;justify-content:space-between;align-items:center;
-    padding:18px 32px;max-width:1040px;margin:0 auto;
-    flex-wrap:wrap;gap:12px;
+    padding:14px 32px;max-width:1180px;margin:0 auto;flex-wrap:wrap;gap:14px;
   }
-  .brand{
-    font-size:1.08rem;font-weight:800;letter-spacing:-.01em;
-    display:flex;align-items:center;gap:10px;
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;color:#fff;}
+  .brand img{height:38px;width:auto;}
+  nav.navlinks{display:flex;align-items:center;gap:28px;flex-wrap:wrap;}
+  nav.navlinks a.navlink{
+    text-decoration:none;font-size:.92rem;color:#dbe1f0;font-weight:500;
   }
-  .brand .mark{
-    width:30px;height:30px;border-radius:9px;
-    background:linear-gradient(135deg,var(--brand),var(--brand2));
-    flex-shrink:0;
+  nav.navlinks a.navlink:hover{color:#fff;}
+  .cta-row{display:flex;gap:12px;align-items:center;}
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;
+    font-weight:700;font-size:.9rem;padding:11px 20px;border-radius:8px;
+    text-decoration:none;border:1.5px solid transparent;transition:all .15s ease;
   }
-  nav a{
-    color:var(--slate);text-decoration:none;font-size:.92rem;margin-left:26px;
-    font-weight:500;transition:color .15s ease;
-  }
-  nav a:hover{color:var(--ink);}
-  .hero{
-    position:relative;
-    padding:96px 32px 80px;max-width:1040px;margin:0 auto;
-    overflow:hidden;
-  }
-  .hero::before{
-    content:"";
-    position:absolute;top:-140px;right:-120px;
-    width:480px;height:480px;border-radius:50%;
-    background:radial-gradient(circle,rgba(79,70,229,.14),transparent 70%);
-    z-index:0;
-  }
-  .hero-inner{position:relative;z-index:1;max-width:640px;}
+  .btn-primary{background:var(--navy);color:#fff;}
+  .btn-primary:hover{background:var(--navy2);}
+  .btn-outline{border-color:var(--navy);color:var(--navy);}
+  .btn-outline:hover{background:var(--navy);color:#fff;}
+  .topnav .btn-outline{border-color:#fff;color:#fff;}
+  .topnav .btn-outline:hover{background:#fff;color:var(--navy);}
+  .topnav .btn-primary{background:var(--red);}
+  .topnav .btn-primary:hover{background:#c93a24;}
+
+  /* HERO */
+  .hero{padding:80px 32px 60px;max-width:1180px;margin:0 auto;}
   .eyebrow{
-    display:inline-flex;align-items:center;gap:8px;
-    font-size:.8rem;font-weight:600;
-    color:var(--brand);background:rgba(79,70,229,.08);
-    padding:6px 14px;border-radius:999px;margin-bottom:22px;
+    font-size:.8rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--red);margin-bottom:16px;
   }
   h1{
-    font-size:clamp(2.1rem,4.4vw,3.1rem);font-weight:800;line-height:1.12;
-    letter-spacing:-.02em;margin-bottom:20px;color:var(--ink);
+    font-size:clamp(2.1rem,4.6vw,3.2rem);font-weight:800;line-height:1.12;
+    letter-spacing:-.01em;margin-bottom:20px;color:var(--navy);max-width:16ch;
   }
-  .hero p.lead{color:var(--slate);max-width:52ch;font-size:1.08rem;}
-  .mc-strip{
-    display:flex;gap:32px;margin-top:40px;flex-wrap:wrap;
-    padding-top:28px;border-top:1px solid var(--line);
-  }
-  .mc-strip div{font-size:.8rem;color:var(--muted);font-weight:500;}
-  .mc-strip strong{display:block;color:var(--ink);font-size:1.05rem;font-weight:700;margin-bottom:2px;}
-  main section{padding:64px 0;border-top:1px solid var(--line);}
-  h2{
-    font-size:1.7rem;font-weight:800;margin-bottom:8px;color:var(--ink);
-    letter-spacing:-.01em;
-  }
-  .section-sub{color:var(--slate);font-size:.98rem;margin-bottom:36px;max-width:56ch;}
-  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+  .hero p.lead{color:var(--slate);max-width:56ch;font-size:1.08rem;margin-bottom:30px;}
+  .badge-row{display:flex;gap:28px;flex-wrap:wrap;margin-top:44px;padding-top:28px;border-top:1px solid var(--line);}
+  .badge{display:flex;align-items:center;gap:10px;font-size:.92rem;font-weight:700;color:var(--navy);}
+  .badge svg{width:24px;height:24px;flex-shrink:0;}
+
+  main section{padding:70px 0;border-top:1px solid var(--line);}
+  h2{font-size:clamp(1.7rem,3.2vw,2.3rem);font-weight:800;color:var(--navy);letter-spacing:-.01em;margin-bottom:10px;}
+  .section-head{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap;margin-bottom:40px;align-items:flex-end;}
+  .section-sub{color:var(--slate);font-size:1rem;max-width:46ch;}
+  .eyebrow-sm{font-size:.78rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--red);margin-bottom:10px;}
+
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
   .card{
-    background:var(--card);border:1px solid var(--line);border-radius:16px;
-    padding:26px;
-    box-shadow:0 1px 2px rgba(15,23,41,.04);
+    background:#ffffff;border:1px solid var(--line);border-radius:14px;padding:26px 22px;
     transition:box-shadow .2s ease, transform .2s ease;
   }
-  .card:hover{box-shadow:0 12px 24px rgba(15,23,41,.08);transform:translateY(-2px);}
-  .card .num{
-    width:36px;height:36px;border-radius:10px;
-    display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(135deg,var(--brand),var(--brand2));
-    color:var(--white);font-weight:700;font-size:.85rem;
-    margin-bottom:16px;
+  .card:hover{box-shadow:0 10px 24px rgba(13,27,61,.08);transform:translateY(-2px);}
+  .card .icon-wrap{
+    width:46px;height:46px;border-radius:10px;background:var(--panel);
+    display:flex;align-items:center;justify-content:center;margin-bottom:16px;
   }
-  .card h3{font-size:1.05rem;margin-bottom:8px;font-weight:700;}
-  .card p{font-size:.92rem;color:var(--slate);}
-  .contact-row{display:flex;gap:20px;flex-wrap:wrap;}
-  .contact-row .card{flex:1;min-width:220px;}
-  .contact-row h3{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;font-weight:700;}
-  .contact-row p{font-size:1.02rem;font-weight:600;color:var(--ink);}
-  .legal h2{font-size:1.5rem;}
-  .legal h3{font-size:1.02rem;font-weight:700;margin:28px 0 10px;color:var(--ink);}
-  .legal p, .legal li{color:var(--slate);font-size:.95rem;margin-bottom:10px;}
+  .card h3{font-size:1.02rem;margin-bottom:8px;font-weight:700;color:var(--ink);}
+  .card p{font-size:.9rem;color:var(--slate);}
+
+  /* NETWORK / OPS DARK SECTION */
+  .ops{background:var(--navy);color:#c9d2e8;border-radius:0;padding:70px 0;border-top:none;}
+  .ops .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center;}
+  .ops h2{color:#fff;}
+  .ops .eyebrow-sm{color:var(--red);}
+  .ops p.lead{color:#aab4d0;max-width:48ch;margin-bottom:24px;font-size:1rem;}
+  .ops ul{list-style:none;margin-bottom:28px;}
+  .ops ul li{display:flex;align-items:center;gap:10px;font-size:.95rem;margin-bottom:12px;color:#e3e8f5;}
+  .ops ul li svg{width:18px;height:18px;stroke:var(--red);flex-shrink:0;}
+  .ops-panel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px;}
+  .ops-badges{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .ops-badge{
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+    border-radius:12px;padding:22px 18px;text-align:center;
+  }
+  .ops-badge svg{width:26px;height:26px;stroke:#fff;margin-bottom:10px;}
+  .ops-badge div.label{font-size:.85rem;font-weight:700;color:#fff;}
+
+  /* WHAT WE MOVE */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .mini-card{
+    border:1px solid var(--line);border-radius:12px;padding:22px 18px;
+    display:flex;align-items:center;gap:14px;
+  }
+  .mini-card .icon-wrap{
+    width:40px;height:40px;border-radius:9px;background:var(--panel);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .mini-card span{font-size:.94rem;font-weight:700;color:var(--ink);}
+
+  /* CTA BANNER */
+  .cta-banner{
+    background:linear-gradient(135deg,var(--navy),var(--navy2));
+    border-radius:18px;padding:50px 46px;color:#fff;
+    display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;
+  }
+  .cta-banner h3{font-size:1.5rem;font-weight:800;margin-bottom:8px;}
+  .cta-banner p{color:#c9d2e8;font-size:.98rem;max-width:40ch;}
+  .cta-actions{display:flex;gap:12px;flex-wrap:wrap;}
+  .cta-banner .btn-outline{border-color:#fff;color:#fff;}
+  .cta-banner .btn-outline:hover{background:#fff;color:var(--navy);}
+  .cta-banner .btn-primary{background:var(--red);}
+  .cta-banner .btn-primary:hover{background:#c93a24;}
+
+  /* CONTACT */
+  .contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;}
+  .contact-grid .lead{color:var(--slate);font-size:1rem;max-width:40ch;}
+  .field{margin-bottom:18px;}
+  .field label{display:block;font-size:.85rem;font-weight:700;margin-bottom:8px;color:var(--ink);}
+  .field label span{color:var(--muted);font-weight:400;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  input, textarea{
+    width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--line);
+    background:var(--panel);font-family:inherit;font-size:.94rem;color:var(--ink);
+  }
+  textarea{min-height:110px;resize:vertical;}
+  input:focus,textarea:focus{outline:2px solid var(--navy2);outline-offset:1px;}
+
+  /* LEGAL */
+  .legal h2{font-size:1.7rem;}
+  .legal h3{font-size:1rem;font-weight:800;margin:26px 0 10px;color:var(--navy);}
+  .legal p, .legal li{color:var(--slate);font-size:.94rem;margin-bottom:10px;}
   .legal ul{padding-left:22px;margin-bottom:10px;}
   .callout{
-    background:linear-gradient(135deg,rgba(79,70,229,.06),rgba(124,58,237,.06));
-    border:1px solid rgba(79,70,229,.15);
-    border-radius:14px;
-    padding:20px 22px;margin:18px 0;font-size:.93rem;color:var(--slate);
+    background:var(--panel);border-left:3px solid var(--red);
+    border-radius:0 10px 10px 0;padding:18px 22px;margin:16px 0;font-size:.92rem;color:var(--slate);
   }
-  footer{
-    background:var(--ink);color:#9aa3b5;padding:36px 32px;font-size:.85rem;
-  }
-  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center;}
-  footer a{color:#c7ccdb;text-decoration:none;margin-left:20px;font-weight:500;}
-  footer a:hover{color:var(--white);}
-  @media (max-width:720px){
+
+  footer{background:var(--navy);color:#9aa5c2;padding:44px 32px 30px;}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:24px;border-top:1px solid rgba(255,255,255,.1);padding-top:28px;}
+  footer .tagline{font-weight:800;font-size:1.05rem;color:#fff;margin-bottom:4px;}
+  footer .cols{display:flex;gap:52px;flex-wrap:wrap;}
+  footer h4{font-size:.92rem;margin-bottom:10px;color:#fff;}
+  footer p, footer a{font-size:.88rem;color:#9aa5c2;text-decoration:none;display:block;margin-bottom:6px;}
+  footer a:hover{color:#fff;}
+
+  @media (max-width:900px){
+    .grid4{grid-template-columns:1fr 1fr;}
     .grid3{grid-template-columns:1fr;}
-    nav{width:100%;display:flex;justify-content:space-between;}
-    nav a{margin-left:0;}
-    footer .wrap{flex-direction:column;align-items:flex-start;}
+    .ops .wrap{grid-template-columns:1fr;}
+    .contact-grid{grid-template-columns:1fr;}
+    .row2{grid-template-columns:1fr;}
+    .cta-banner{flex-direction:column;align-items:flex-start;}
+  }
+  @media (max-width:600px){
+    .grid4{grid-template-columns:1fr;}
+    .ops-badges{grid-template-columns:1fr;}
   }
 </style>
 </head>
 <body>
 <header class="topnav">
   <div class="topbar">
-    <div class="brand"><span class="mark"></span>US Freight Logistics</div>
-    <nav>
-      <a href="#services">Services</a>
-      <a href="#contact">Contact</a>
-      <a href="#privacy">Privacy</a>
-      <a href="#terms">Terms</a>
+    <div class="brand"><img src="Logo.png" alt="US Freight Logistics LLC logo">US Freight Logistics</div>
+    <nav class="navlinks">
+      <a class="navlink" href="#services">Services</a>
+      <a class="navlink" href="#network">Operations</a>
+      <a class="navlink" href="#move">What We Move</a>
+      <a class="navlink" href="#contact">Contact</a>
     </nav>
+    <div class="cta-row">
+      <a class="btn btn-outline" href="#contact">Contact Us</a>
+      <a class="btn btn-primary" href="#contact">Request Quote</a>
+    </div>
   </div>
 </header>
+
 <div class="hero">
-  <div class="hero-inner">
-    <div class="eyebrow">🚛 Licensed Motor Carrier</div>
-    <h1>Freight moved on schedule, coast to coast.</h1>
-    <p class="lead">US Freight Logistics LLC is a licensed motor carrier operating throughout the United States, coordinating dry van and refrigerated freight with a dedicated contractor driver network.</p>
-    <div class="mc-strip">
-      <div><strong>MC 1314518</strong>Motor Carrier Number</div>
-      <div><strong>USDOT 3727542</strong>DOT Number</div>
-      <div><strong>Flagstaff, AZ</strong>Operating Address</div>
+  <div class="eyebrow">Your Freight. Our Priority.</div>
+  <h1>Reliable Transportation for Your Business.</h1>
+  <p class="lead">We help businesses move freight efficiently with dedicated lanes, hook &amp; drop operations, live loads, and over-the-road transportation &mdash; backed by experienced dispatch and professional drivers.</p>
+  <div class="cta-row">
+    <a class="btn btn-primary" href="#contact">Request a Quote →</a>
+    <a class="btn btn-outline" href="#services">Transportation Solutions</a>
+  </div>
+  <div class="badge-row">
+    <div class="badge">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M3 6h12M3 18h12"/></svg>
+      Dedicated Lanes
+    </div>
+    <div class="badge">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M7 7l-4 4 4 4M17 7l4 4-4 4"/></svg>
+      Hook &amp; Drop
+    </div>
+    <div class="badge">
+      <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="8" width="12" height="9"/><path d="M15 11h3l3 2.5v3.5h-6z"/><path d="M7 4v4M11 4v4"/></svg>
+      Live Loads
+    </div>
+    <div class="badge">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M2 17h13V7H2z"/><path d="M15 10h4l3 3v4h-7z"/><circle cx="6.5" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/></svg>
+      OTR Transportation
     </div>
   </div>
 </div>
+
 <main>
   <div class="wrap">
+    <section id="why" style="border-top:none;">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow-sm">Why USFL</div>
+          <h2>Why Customers Choose USFL</h2>
+        </div>
+      </div>
+      <div class="grid4">
+        <div class="card">
+          <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><rect x="1" y="7" width="13" height="9"/><path d="M14 10h4l4 3v3h-8z"/><circle cx="6" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></div>
+          <h3>Dedicated Capacity</h3>
+          <p>Reliable equipment dedicated to your freight.</p>
+        </div>
+        <div class="card">
+          <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M2 12a10 10 0 0 1 20 0"/><circle cx="12" cy="12" r="1.6"/></svg></div>
+          <h3>Responsive Dispatch</h3>
+          <p>Direct communication from pickup to delivery.</p>
+        </div>
+        <div class="card">
+          <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <h3>On-Time Service</h3>
+          <p>Reliable scheduling and consistent execution.</p>
+        </div>
+        <div class="card">
+          <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+          <h3>Long-Term Partnerships</h3>
+          <p>Built around recurring freight and dedicated lanes.</p>
+        </div>
+      </div>
+    </section>
+
     <section id="services">
-      <h2>What we do</h2>
-      <p class="section-sub">Full truckload freight services, coordinated through a network of independent contractor drivers.</p>
+      <div class="section-head">
+        <div>
+          <div class="eyebrow-sm">Our Services</div>
+          <h2>Built Around Dedicated Freight</h2>
+        </div>
+        <p class="section-sub">Focused capabilities, not a scattershot of every logistics service &mdash; here's exactly what we run.</p>
+      </div>
+      <div class="grid4">
+        <div class="card">
+          <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M3 6h12M3 18h12"/></svg></div>
+          <h3>Dedicated Lanes</h3>
+          <p>Reliable scheduled transportation with dedicated equipment, consistent drivers, and dependable service for recurring freight.</p>
+        </div>
+        <div class="card">
+          <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M7 7l-4 4 4 4M17 7l4 4-4 4"/></svg></div>
+          <h3>Hook &amp; Drop Operations</h3>
+          <p>Fast trailer exchanges that reduce wait times, improve equipment utilization, and keep freight moving.</p>
+        </div>
+        <div class="card">
+          <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="8" width="12" height="9"/><path d="M15 11h3l3 2.5v3.5h-6z"/><path d="M7 4v4M11 4v4"/></svg></div>
+          <h3>Live Loads</h3>
+          <p>Efficient live loading and unloading coordinated by experienced dispatch to minimize delays.</p>
+        </div>
+        <div class="card">
+          <div class="icon-wrap"><svg class="icon" viewBox="0 0 24 24"><path d="M2 17h13V7H2z"/><path d="M15 10h4l3 3v4h-7z"/><circle cx="6.5" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/></svg></div>
+          <h3>OTR Transportation</h3>
+          <p>Long-haul transportation across regional and nationwide lanes with professional drivers and reliable communication.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="network" style="border-top:none;padding:0;">
+      <div class="ops">
+        <div class="wrap">
+          <div>
+            <div class="eyebrow-sm">Operations</div>
+            <h2>The People Behind Every Shipment.</h2>
+            <p class="lead">Every load is supported by an experienced operations team that coordinates schedules, communicates with drivers, and keeps customers informed from pickup through delivery.</p>
+            <ul>
+              <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Dedicated lane planning</li>
+              <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Live load coordination</li>
+              <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Driver communication</li>
+              <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>On-time shipment updates</li>
+            </ul>
+            <a class="btn btn-outline" style="border-color:#fff;color:#fff;" href="#contact">Get in Touch →</a>
+          </div>
+          <div class="ops-panel">
+            <div class="ops-badges">
+              <div class="ops-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h12M3 18h12"/></svg>
+                <div class="label">Dedicated Lanes</div>
+              </div>
+              <div class="ops-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                <div class="label">24/7 Dispatch</div>
+              </div>
+              <div class="ops-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
+                <div class="label">Experienced Drivers</div>
+              </div>
+              <div class="ops-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 16 0"/><path d="M2 12a10 10 0 0 1 20 0"/><circle cx="12" cy="12" r="1.6"/></svg>
+                <div class="label">Shipment Updates</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="move">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow-sm">Freight Solutions</div>
+          <h2>What We Haul</h2>
+        </div>
+        <p class="section-sub">The freight types and lanes our dedicated fleet is built to run.</p>
+      </div>
       <div class="grid3">
-        <div class="card">
-          <div class="num">01</div>
-          <h3>Truckload Dispatch</h3>
-          <p>Load matching and dispatch coordination for full truckload freight across the continental US.</p>
+        <div class="mini-card">
+          <div class="icon-wrap"><svg class="icon" style="width:20px;height:20px;" viewBox="0 0 24 24"><path d="M3 12h18M3 6h12M3 18h12"/></svg></div>
+          <span>Dedicated Transportation</span>
         </div>
-        <div class="card">
-          <div class="num">02</div>
-          <h3>Carrier Operations</h3>
-          <p>Route planning, trip tracking, and driver communication handled by our operations team.</p>
+        <div class="mini-card">
+          <div class="icon-wrap"><svg class="icon" style="width:20px;height:20px;" viewBox="0 0 24 24"><path d="M7 7l-4 4 4 4M17 7l4 4-4 4"/></svg></div>
+          <span>Hook &amp; Drop</span>
         </div>
-        <div class="card">
-          <div class="num">03</div>
-          <h3>Contractor Network</h3>
-          <p>A vetted fleet of independent contractor drivers paid per completed trip.</p>
+        <div class="mini-card">
+          <div class="icon-wrap"><svg class="icon" style="width:20px;height:20px;" viewBox="0 0 24 24"><rect x="3" y="8" width="12" height="9"/><path d="M15 11h3l3 2.5v3.5h-6z"/><path d="M7 4v4M11 4v4"/></svg></div>
+          <span>Live Loads</span>
+        </div>
+        <div class="mini-card">
+          <div class="icon-wrap"><svg class="icon" style="width:20px;height:20px;" viewBox="0 0 24 24"><path d="M2 17h13V7H2z"/><path d="M15 10h4l3 3v4h-7z"/><circle cx="6.5" cy="19" r="1.6"/><circle cx="18" cy="19" r="1.6"/></svg></div>
+          <span>OTR Services</span>
+        </div>
+        <div class="mini-card">
+          <div class="icon-wrap"><svg class="icon" style="width:20px;height:20px;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <span>Scheduled Freight</span>
+        </div>
+        <div class="mini-card">
+          <div class="icon-wrap"><svg class="icon" style="width:20px;height:20px;" viewBox="0 0 24 24"><path d="M4 4v16h16"/><path d="M4 14l4-4 4 3 8-8"/></svg></div>
+          <span>Contract Freight</span>
         </div>
       </div>
     </section>
+
+    <section>
+      <div class="cta-banner">
+        <div>
+          <h3>Ready to Move Your Freight?</h3>
+          <p>Partner with US Freight Logistics for dependable dedicated transportation backed by experienced drivers, responsive dispatch, and reliable service.</p>
+        </div>
+        <div class="cta-actions">
+          <a class="btn btn-primary" href="#contact">Request a Quote →</a>
+          <a class="btn btn-outline" href="#contact">Contact Us →</a>
+        </div>
+      </div>
+    </section>
+
     <section id="contact">
-      <h2>Contact</h2>
-      <p class="section-sub">Reach our operations team directly.</p>
-      <div class="contact-row">
-        <div class="card">
-          <h3>Company</h3>
-          <p>US Freight Logistics LLC</p>
+      <div class="contact-grid">
+        <div>
+          <div class="eyebrow-sm">Contact</div>
+          <h2>Get in Touch</h2>
+          <p class="lead">Tell us about your transportation needs and a member of our operations team will contact you shortly.</p>
         </div>
-        <div class="card">
-          <h3>Email</h3>
-          <p>account@usfltransit.com</p>
-        </div>
-        <div class="card">
-          <h3>Business Address</h3>
-          <p>Flagstaff, AZ</p>
-        </div>
-        <div class="card">
-          <h3>Mailing Address</h3>
-          <p>Henderson, NV</p>
-        </div>
+        <form>
+          <div class="row2">
+            <div class="field">
+              <label>First Name <span>(required)</span></label>
+              <input type="text" name="first_name" required>
+            </div>
+            <div class="field">
+              <label>Last Name <span>(required)</span></label>
+              <input type="text" name="last_name" required>
+            </div>
+          </div>
+          <div class="field">
+            <label>Email <span>(required)</span></label>
+            <input type="email" name="email" required>
+          </div>
+          <div class="field">
+            <label>Message <span>(required)</span></label>
+            <textarea name="message" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" style="border:none;cursor:pointer;">Send</button>
+        </form>
       </div>
     </section>
+
     <section id="privacy" class="legal">
       <h2>Privacy Policy</h2>
-      <p class="section-sub">Last updated: July 2026</p>
+      <p class="section-sub" style="margin-bottom:20px;">Last updated: July 2026</p>
       <p>US Freight Logistics LLC ("we," "us," "our") respects your privacy. This policy explains how we collect, use, and protect information, including information related to SMS/text messaging communications.</p>
       <h3>Information we collect</h3>
       <p>We may collect contact information (name, phone number, email) that you provide directly, such as when communicating with our dispatch or operations team.</p>
@@ -224,9 +432,10 @@
       <h3>Contact us</h3>
       <p>Questions about this policy can be directed to account@usfltransit.com.</p>
     </section>
+
     <section id="terms" class="legal">
       <h2>Terms of Service</h2>
-      <p class="section-sub">Last updated: July 2026</p>
+      <p class="section-sub" style="margin-bottom:20px;">Last updated: July 2026</p>
       <h3>SMS Program Terms</h3>
       <p>By opting in to SMS/text communications from US Freight Logistics LLC, you agree to receive trip, dispatch, and account-related text messages.</p>
       <ul>
@@ -243,12 +452,32 @@
     </section>
   </div>
 </main>
+
 <footer>
   <div class="wrap">
-    <div>&copy; 2026 US Freight Logistics LLC &mdash; MC 1314518 &middot; USDOT 3727542</div>
     <div>
-      <a href="#privacy">Privacy Policy</a>
-      <a href="#terms">Terms of Service</a>
+      <div class="tagline">US Freight Logistics LLC</div>
+      <p>MC 1314518 &middot; USDOT 3727542</p>
+      <p>Dedicated Transportation &middot; Hook &amp; Drop &middot; Live Loads &middot; OTR Division</p>
+      <p>Flagstaff, Arizona &middot; Serving Customers Across the United States</p>
+    </div>
+    <div class="cols">
+      <div>
+        <h4>Company</h4>
+        <a href="#contact">Request Quote</a>
+        <a href="#services">Services</a>
+        <a href="#contact">Contact</a>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <a href="#privacy">Privacy Policy</a>
+        <a href="#terms">Terms</a>
+      </div>
+      <div>
+        <h4>Contact</h4>
+        <p>account@usfltransit.com</p>
+        <p>Mailing: Henderson, NV</p>
+      </div>
     </div>
   </div>
 </footer>
