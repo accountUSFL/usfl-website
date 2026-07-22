@@ -6,111 +6,138 @@
 <title>US Freight Logistics LLC</title>
 <style>
   :root{
-    --ink:#12171f;
-    --steel:#2c3646;
-    --slate:#5b6675;
-    --paper:#f5f6f4;
-    --line:#dde1e0;
-    --signal:#e8622c;
+    --ink:#0f1729;
+    --slate:#5b6577;
+    --muted:#8892a3;
+    --paper:#fbfbfc;
+    --card:#ffffff;
+    --line:#e7e9ee;
+    --brand:#4f46e5;
+    --brand2:#7c3aed;
+    --accent:#f97316;
     --white:#ffffff;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html{scroll-behavior:smooth;}
   body{
-    font-family:'Segoe UI',ui-sans-serif,system-ui,-apple-system,sans-serif;
+    font-family:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
     color:var(--ink);
     background:var(--paper);
-    line-height:1.6;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
   }
   a{color:inherit;}
-  .wrap{max-width:920px;margin:0 auto;padding:0 28px;}
-  header{
-    background:var(--ink);
-    color:var(--white);
-    border-bottom:3px solid var(--signal);
+  .wrap{max-width:1040px;margin:0 auto;padding:0 32px;}
+  header.topnav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(251,251,252,.85);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
   }
   .topbar{
     display:flex;justify-content:space-between;align-items:center;
-    padding:22px 28px;max-width:920px;margin:0 auto;
+    padding:18px 32px;max-width:1040px;margin:0 auto;
     flex-wrap:wrap;gap:12px;
   }
   .brand{
-    font-size:1.15rem;font-weight:700;letter-spacing:.01em;
+    font-size:1.08rem;font-weight:800;letter-spacing:-.01em;
     display:flex;align-items:center;gap:10px;
   }
   .brand .mark{
-    width:14px;height:14px;background:var(--signal);
-    transform:rotate(45deg);flex-shrink:0;
+    width:30px;height:30px;border-radius:9px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));
+    flex-shrink:0;
   }
   nav a{
-    color:#c7cdd6;text-decoration:none;font-size:.92rem;margin-left:22px;
-    border-bottom:1px solid transparent;
+    color:var(--slate);text-decoration:none;font-size:.92rem;margin-left:26px;
+    font-weight:500;transition:color .15s ease;
   }
-  nav a:hover{color:var(--white);border-bottom-color:var(--signal);}
+  nav a:hover{color:var(--ink);}
   .hero{
-    padding:64px 28px 56px;max-width:920px;margin:0 auto;color:var(--white);
+    position:relative;
+    padding:96px 32px 80px;max-width:1040px;margin:0 auto;
+    overflow:hidden;
   }
+  .hero::before{
+    content:"";
+    position:absolute;top:-140px;right:-120px;
+    width:480px;height:480px;border-radius:50%;
+    background:radial-gradient(circle,rgba(79,70,229,.14),transparent 70%);
+    z-index:0;
+  }
+  .hero-inner{position:relative;z-index:1;max-width:640px;}
   .eyebrow{
-    font-size:.78rem;text-transform:uppercase;letter-spacing:.12em;
-    color:var(--signal);font-weight:700;margin-bottom:14px;
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:.8rem;font-weight:600;
+    color:var(--brand);background:rgba(79,70,229,.08);
+    padding:6px 14px;border-radius:999px;margin-bottom:22px;
   }
   h1{
-    font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;line-height:1.15;
-    max-width:14ch;margin-bottom:18px;
+    font-size:clamp(2.1rem,4.4vw,3.1rem);font-weight:800;line-height:1.12;
+    letter-spacing:-.02em;margin-bottom:20px;color:var(--ink);
   }
-  .hero p{color:#c7cdd6;max-width:52ch;font-size:1.02rem;}
+  .hero p.lead{color:var(--slate);max-width:52ch;font-size:1.08rem;}
   .mc-strip{
-    display:flex;gap:28px;margin-top:30px;flex-wrap:wrap;
-    border-top:1px solid #3a4453;padding-top:20px;
+    display:flex;gap:32px;margin-top:40px;flex-wrap:wrap;
+    padding-top:28px;border-top:1px solid var(--line);
   }
-  .mc-strip div{font-size:.82rem;color:#8b94a3;}
-  .mc-strip strong{display:block;color:var(--white);font-size:1rem;font-weight:700;}
-  main section{padding:52px 0;border-bottom:1px solid var(--line);}
-  main section:last-of-type{border-bottom:none;}
+  .mc-strip div{font-size:.8rem;color:var(--muted);font-weight:500;}
+  .mc-strip strong{display:block;color:var(--ink);font-size:1.05rem;font-weight:700;margin-bottom:2px;}
+  main section{padding:64px 0;border-top:1px solid var(--line);}
   h2{
-    font-size:1.5rem;font-weight:800;margin-bottom:6px;color:var(--ink);
+    font-size:1.7rem;font-weight:800;margin-bottom:8px;color:var(--ink);
+    letter-spacing:-.01em;
   }
-  .section-sub{color:var(--slate);font-size:.92rem;margin-bottom:28px;}
-  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+  .section-sub{color:var(--slate);font-size:.98rem;margin-bottom:36px;max-width:56ch;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
   .card{
-    background:var(--white);border:1px solid var(--line);padding:22px;
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:26px;
+    box-shadow:0 1px 2px rgba(15,23,41,.04);
+    transition:box-shadow .2s ease, transform .2s ease;
   }
+  .card:hover{box-shadow:0 12px 24px rgba(15,23,41,.08);transform:translateY(-2px);}
   .card .num{
-    font-size:.78rem;color:var(--signal);font-weight:700;letter-spacing:.06em;
-    margin-bottom:10px;
+    width:36px;height:36px;border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));
+    color:var(--white);font-weight:700;font-size:.85rem;
+    margin-bottom:16px;
   }
-  .card h3{font-size:1.02rem;margin-bottom:8px;font-weight:700;}
-  .card p{font-size:.9rem;color:var(--slate);}
-  .contact-row{display:flex;gap:40px;flex-wrap:wrap;}
-  .contact-row div{flex:1;min-width:220px;}
-  .contact-row h3{font-size:.82rem;text-transform:uppercase;letter-spacing:.08em;color:var(--slate);margin-bottom:8px;}
-  .contact-row p{font-size:1rem;font-weight:600;}
-  .legal h2{font-size:1.3rem;}
-  .legal h3{font-size:1rem;font-weight:700;margin:26px 0 8px;}
-  .legal p, .legal li{color:var(--steel);font-size:.94rem;margin-bottom:10px;}
+  .card h3{font-size:1.05rem;margin-bottom:8px;font-weight:700;}
+  .card p{font-size:.92rem;color:var(--slate);}
+  .contact-row{display:flex;gap:20px;flex-wrap:wrap;}
+  .contact-row .card{flex:1;min-width:220px;}
+  .contact-row h3{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;font-weight:700;}
+  .contact-row p{font-size:1.02rem;font-weight:600;color:var(--ink);}
+  .legal h2{font-size:1.5rem;}
+  .legal h3{font-size:1.02rem;font-weight:700;margin:28px 0 10px;color:var(--ink);}
+  .legal p, .legal li{color:var(--slate);font-size:.95rem;margin-bottom:10px;}
   .legal ul{padding-left:22px;margin-bottom:10px;}
   .callout{
-    background:var(--white);border-left:3px solid var(--signal);
-    padding:16px 20px;margin:16px 0;font-size:.92rem;color:var(--steel);
+    background:linear-gradient(135deg,rgba(79,70,229,.06),rgba(124,58,237,.06));
+    border:1px solid rgba(79,70,229,.15);
+    border-radius:14px;
+    padding:20px 22px;margin:18px 0;font-size:.93rem;color:var(--slate);
   }
   footer{
-    background:var(--ink);color:#8b94a3;padding:30px 28px;font-size:.82rem;
+    background:var(--ink);color:#9aa3b5;padding:36px 32px;font-size:.85rem;
   }
-  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;}
-  footer a{color:#c7cdd6;text-decoration:none;margin-left:16px;}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;align-items:center;}
+  footer a{color:#c7ccdb;text-decoration:none;margin-left:20px;font-weight:500;}
   footer a:hover{color:var(--white);}
   @media (max-width:720px){
     .grid3{grid-template-columns:1fr;}
     nav{width:100%;display:flex;justify-content:space-between;}
     nav a{margin-left:0;}
-    footer .wrap{flex-direction:column;}
+    footer .wrap{flex-direction:column;align-items:flex-start;}
   }
 </style>
 </head>
 <body>
-<header>
+<header class="topnav">
   <div class="topbar">
-    <div class="brand"><span class="mark"></span>US Freight Logistics LLC</div>
+    <div class="brand"><span class="mark"></span>US Freight Logistics</div>
     <nav>
       <a href="#services">Services</a>
       <a href="#contact">Contact</a>
@@ -118,17 +145,19 @@
       <a href="#terms">Terms</a>
     </nav>
   </div>
-  <div class="hero">
-    <div class="eyebrow">Licensed Motor Carrier</div>
+</header>
+<div class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">🚛 Licensed Motor Carrier</div>
     <h1>Freight moved on schedule, coast to coast.</h1>
-    <p>US Freight Logistics LLC is a licensed motor carrier operating throughout the United States, coordinating dry van and refrigerated freight with a dedicated contractor driver network.</p>
+    <p class="lead">US Freight Logistics LLC is a licensed motor carrier operating throughout the United States, coordinating dry van and refrigerated freight with a dedicated contractor driver network.</p>
     <div class="mc-strip">
       <div><strong>MC 1314518</strong>Motor Carrier Number</div>
       <div><strong>USDOT 3727542</strong>DOT Number</div>
       <div><strong>Flagstaff, AZ</strong>Operating Address</div>
     </div>
   </div>
-</header>
+</div>
 <main>
   <div class="wrap">
     <section id="services">
@@ -156,19 +185,19 @@
       <h2>Contact</h2>
       <p class="section-sub">Reach our operations team directly.</p>
       <div class="contact-row">
-        <div>
+        <div class="card">
           <h3>Company</h3>
           <p>US Freight Logistics LLC</p>
         </div>
-        <div>
+        <div class="card">
           <h3>Email</h3>
           <p>account@usfltransit.com</p>
         </div>
-        <div>
+        <div class="card">
           <h3>Business Address</h3>
           <p>Flagstaff, AZ</p>
         </div>
-        <div>
+        <div class="card">
           <h3>Mailing Address</h3>
           <p>Henderson, NV</p>
         </div>
