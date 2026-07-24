@@ -26,6 +26,7 @@
     color:var(--ink);
     background:var(--paper);
     line-height:1.7;
+    overflow-x:hidden;
   }
   a{color:inherit;}
   .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
@@ -287,7 +288,12 @@
     .steps-row{flex-direction:column;gap:20px;}
     .step-connector{display:none;}
     .coverage-grid{grid-template-columns:1fr;}
-    .hq-card{position:static;width:100%;max-width:none;margin-top:14px;box-shadow:0 8px 24px rgba(15,23,42,.08);}
+    .cta-row{flex-wrap:wrap;}
+    .cta-row .btn{white-space:normal;}
+    .coverage-badge{white-space:normal;}
+    .hq-card{position:static !important;width:100% !important;max-width:none !important;min-width:0 !important;left:auto !important;bottom:auto !important;top:auto !important;right:auto !important;margin-top:14px;box-shadow:0 8px 24px rgba(15,23,42,.08);}
+    .coverage-map-panel{padding:12px;}
+    .coverage-map-visual{margin-bottom:0;}
   }
 
   /* WHAT WE MOVE */
