@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Equipment Tracker | US Freight Logistics LLC</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --navy:#0d1b3d; --navy2:#132a5e; --red:#e8462c; --ink:#12172a;
+    --slate:#565f75; --muted:#8890a0; --paper:#f8fafc; --panel:#eef1f6;
+    --line:rgba(15,23,42,.08); --white-bg:#ffffff; --green:#1a8a5a;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',ui-sans-serif,system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--paper);line-height:1.6;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px;}
+  a{color:inherit;}
+
+  header.topnav{background:var(--navy);padding:18px 0;}
+  header.topnav .wrap{display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:11px;color:#fff;text-decoration:none;font-weight:700;}
+  .brand img{height:36px;}
+  #logoutBtn{display:none;background:transparent;border:1.5px solid rgba(255,255,255,.4);color:#fff;padding:8px 18px;border-radius:10px;font-weight:700;font-size:.85rem;cursor:pointer;}
+  #logoutBtn:hover{background:rgba(255,255,255,.1);}
+
+  /* LOGIN */
+  #loginScreen{min-height:calc(100vh - 76px);display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+  .login-card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 20px 48px rgba(15,23,42,.08);padding:40px 36px;max-width:380px;width:100%;}
+  .login-card h1{font-size:1.4rem;color:var(--navy);margin-bottom:6px;}
+  .login-card p{color:var(--slate);font-size:.9rem;margin-bottom:24px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:.82rem;font-weight:700;color:var(--navy);margin-bottom:6px;}
+  .field input{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:.95rem;font-family:inherit;}
+  .field input:focus{outline:none;border-color:var(--navy);}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:46px;padding:0 22px;border-radius:10px;font-weight:700;font-size:.9rem;border:none;cursor:pointer;width:100%;background:var(--navy);color:#fff;transition:background .2s ease;}
+  .btn:hover{background:var(--navy2);}
+  .btn:disabled{opacity:.6;cursor:not-allowed;}
+  .err-msg{background:#fef2f0;border:1px solid rgba(232,70,44,.3);color:#b5341c;font-size:.82rem;padding:10px 14px;border-radius:8px;margin-bottom:16px;display:none;}
+
+  /* DASHBOARD */
+  #dashboard{display:none;padding:32px 0 80px;}
+  .tabs{display:flex;gap:8px;margin-bottom:28px;border-bottom:1px solid var(--line);}
+  .tab-btn{background:none;border:none;padding:12px 18px;font-weight:700;font-size:.9rem;color:var(--slate);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;}
+  .tab-btn.active{color:var(--navy);border-bottom-color:var(--red);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  .section-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px;}
+  .section-row h2{font-size:1.3rem;color:var(--navy);}
+  .btn-sm{height:38px;padding:0 16px;font-size:.82rem;width:auto;}
+  .btn-outline{background:#fff;color:var(--navy);border:1.5px solid var(--navy);}
+  .btn-outline:hover{background:var(--panel);}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.04);padding:24px;margin-bottom:24px;}
+  .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:16px;}
+
+  table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  th{text-align:left;padding:10px 12px;color:var(--slate);font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.03em;border-bottom:2px solid var(--line);white-space:nowrap;}
+  td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  tr.flagged td{background:#fef2f0;}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;}
+  .pill-ok{background:#e9f7f0;color:var(--green);}
+  .pill-bad{background:#fce9e5;color:var(--red);}
+  .table-scroll{overflow-x:auto;}
+  .muted{color:var(--muted);font-size:.82rem;}
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;}
+  .stat-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;}
+  .stat-card .num{font-size:1.6rem;font-weight:800;color:var(--navy);}
+  .stat-card .label{font-size:.78rem;color:var(--slate);font-weight:600;margin-top:2px;}
+  select{padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:.9rem;}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="Logo.png" alt="US Freight Logistics LLC logo">Equipment Tracker</a>
+    <button id="logoutBtn">Log Out</button>
+  </div>
+</header>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>Equipment Tracker</h1>
+    <p>Internal access only. Sign in with your USFL account.</p>
+    <div class="err-msg" id="loginErr"></div>
+    <form id="loginForm">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" required autocomplete="current-password">
+      </div>
+      <button class="btn" type="submit" id="loginBtn">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<div id="dashboard">
+  <div class="wrap">
+
+    <div class="stat-grid" id="statGrid"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="entry">Log Weekly Charge</button>
+      <button class="tab-btn" data-tab="history">Charge History</button>
+      <button class="tab-btn" data-tab="units">Units</button>
+      <button class="tab-btn" data-tab="reports">Per-Unit Reports</button>
+    </div>
+
+    <!-- LOG WEEKLY CHARGE -->
+    <div class="tab-panel active" id="tab-entry">
+      <div class="card">
+        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:18px;">New weekly charge entry</h2>
+        <form id="chargeForm">
+          <div class="form-grid">
+            <div class="field"><label>Unit</label>
+              <select id="cUnit" required></select>
+            </div>
+            <div class="field"><label>Week Start Date</label>
+              <input type="date" id="cWeekStart" required>
+            </div>
+            <div class="field"><label>Agreement #</label>
+              <input type="text" id="cAgreement" placeholder="e.g. 15994669">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Base Charge Billed ($)</label>
+              <input type="number" step="0.01" id="cBase" value="0" required>
+            </div>
+            <div class="field"><label>Miles Driven</label>
+              <input type="number" step="1" id="cMiles" value="0" required>
+            </div>
+            <div class="field"><label>Mileage Charge Billed ($)</label>
+              <input type="number" step="0.01" id="cMileageCharge" value="0" required>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Environmental Fee Billed ($)</label>
+              <input type="number" step="0.01" id="cEnvFee" value="35.00">
+            </div>
+            <div class="field"><label>Other Fees Billed ($)</label>
+              <input type="number" step="0.01" id="cOtherFees" value="0">
+            </div>
+            <div class="field"><label>Tax Billed ($)</label>
+              <input type="number" step="0.01" id="cTax" value="0">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Total Charged to Card ($)</label>
+              <input type="number" step="0.01" id="cTotal" value="0" required>
+            </div>
+            <div class="field"><label>Maintenance/PM Days Down</label>
+              <input type="number" step="0.5" id="cMaintDays" value="0">
+            </div>
+          </div>
+          <div class="field">
+            <label>Maintenance Notes (optional)</label>
+            <input type="text" id="cMaintNotes" placeholder="e.g. brake repair Mon-Tue">
+          </div>
+          <div class="field">
+            <label>Notes (optional)</label>
+            <input type="text" id="cNotes">
+          </div>
+          <div id="chargePreview" class="card" style="background:var(--panel);display:none;margin-top:8px;margin-bottom:16px;"></div>
+          <button class="btn btn-sm" type="submit" style="width:auto;">Save Entry</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="tab-panel" id="tab-history">
+      <div class="section-row"><h2>Charge History</h2></div>
+      <div class="card table-scroll">
+        <table id="historyTable">
+          <thead><tr>
+            <th>Week</th><th>Unit</th><th>Agreement #</th><th>Actual Total</th>
+            <th>Expected Total</th><th>Difference</th><th>Status</th><th>Maint. Days</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="historyEmpty" style="display:none;">No charges logged yet.</div>
+      </div>
+    </div>
+
+    <!-- UNITS -->
+    <div class="tab-panel" id="tab-units">
+      <div class="section-row">
+        <h2>Units</h2>
+        <button class="btn btn-sm btn-outline" id="showAddUnit">+ Add Unit</button>
+      </div>
+      <div class="card" id="addUnitCard" style="display:none;">
+        <form id="unitForm">
+          <div class="form-grid">
+            <div class="field"><label>Unit Number</label><input type="text" id="uNumber" required placeholder="e.g. 333921"></div>
+            <div class="field"><label>Type</label>
+              <select id="uType"><option value="trailer">Trailer</option><option value="truck">Truck</option></select>
+            </div>
+            <div class="field"><label>Description</label><input type="text" id="uDesc" placeholder="53FT T/A Reefer Trailer"></div>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Weekly Base Rate ($)</label><input type="number" step="0.01" id="uBaseRate" required></div>
+            <div class="field"><label>Included Miles (blank = none)</label><input type="number" step="1" id="uIncludedMiles"></div>
+            <div class="field"><label>Per-Mile Rate ($)</label><input type="number" step="0.0001" id="uPerMile" value="0.04"></div>
+            <div class="field"><label>Environmental Fee ($)</label><input type="number" step="0.01" id="uEnvFee" value="35.00"></div>
+          </div>
+          <button class="btn btn-sm" type="submit" style="width:auto;">Save Unit</button>
+        </form>
+      </div>
+      <div class="card table-scroll">
+        <table id="unitsTable">
+          <thead><tr><th>Unit #</th><th>Type</th><th>Description</th><th>Weekly Rate</th><th>Included Miles</th><th>Per-Mile Rate</th><th>Env Fee</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="unitsEmpty" style="display:none;">No units added yet — add your first unit above.</div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="tab-panel" id="tab-reports">
+      <div class="section-row"><h2>Per-Unit Reports</h2></div>
+      <div class="card table-scroll">
+        <table id="reportsTable">
+          <thead><tr><th>Unit</th><th>Weeks Logged</th><th>Total Charged</th><th>Total Expected</th><th>Total Discrepancy</th><th>Avg Miles/Week</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="reportsEmpty" style="display:none;">No data yet.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://zddpivuekcxkltmdvksk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_0GDzLGv4vzmat_vxv1lScQ_DT4wtsLa";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let UNITS = [];
+let CHARGES = [];
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => "$" + (Number(n)||0).toFixed(2);
+
+// ---------- AUTH ----------
+async function checkSession(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){ showDashboard(); } else { showLogin(); }
+}
+function showLogin(){
+  $('loginScreen').style.display='flex';
+  $('dashboard').style.display='none';
+  $('logoutBtn').style.display='none';
+}
+function showDashboard(){
+  $('loginScreen').style.display='none';
+  $('dashboard').style.display='block';
+  $('logoutBtn').style.display='inline-flex';
+  loadAll();
+}
+
+$('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const btn = $('loginBtn');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  $('loginErr').style.display='none';
+  const { error } = await sb.auth.signInWithPassword({
+    email: $('loginEmail').value.trim(),
+    password: $('loginPassword').value
+  });
+  btn.disabled = false; btn.textContent = 'Sign In';
+  if(error){
+    $('loginErr').textContent = error.message;
+    $('loginErr').style.display='block';
+    return;
+  }
+  showDashboard();
+});
+
+$('logoutBtn').addEventListener('click', async ()=>{
+  await sb.auth.signOut();
+  showLogin();
+});
+
+// ---------- TABS ----------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    $('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ---------- DATA LOADING ----------
+async function loadAll(){
+  await loadUnits();
+  await loadCharges();
+  renderUnitsTable();
+  renderUnitSelect();
+  renderHistory();
+  renderReports();
+  renderStats();
+}
+
+async function loadUnits(){
+  const { data, error } = await sb.from('equipment_units').select('*').order('unit_number');
+  if(error){ console.error(error); return; }
+  UNITS = data || [];
+}
+async function loadCharges(){
+  const { data, error } = await sb.from('equipment_weekly_charges').select('*').order('week_start_date', {ascending:false});
+  if(error){ console.error(error); return; }
+  CHARGES = data || [];
+}
+
+// ---------- EXPECTED / DISCREPANCY CALC ----------
+function computeExpected(unit, charge){
+  if(!unit) return null;
+  const dailyRate = unit.weekly_base_rate / 7;
+  const expectedBase = Math.max(0, unit.weekly_base_rate - dailyRate * (Number(charge.maintenance_days)||0));
+  let expectedMileage = 0;
+  const miles = Number(charge.miles_driven)||0;
+  if(unit.included_miles !== null && unit.included_miles !== undefined){
+    expectedMileage = Math.max(0, miles - unit.included_miles) * unit.per_mile_rate;
+  } else {
+    expectedMileage = miles * unit.per_mile_rate;
+  }
+  const expectedEnv = unit.environmental_fee || 0;
+  const expectedSubtotal = expectedBase + expectedMileage + expectedEnv;
+  const actualSubtotal = (Number(charge.actual_base_charge)||0) + (Number(charge.actual_mileage_charge)||0) +
+                          (Number(charge.actual_environmental_fee)||0) + (Number(charge.actual_other_fees)||0);
+  const diff = actualSubtotal - expectedSubtotal;
+  return { expectedBase, expectedMileage, expectedEnv, expectedSubtotal, actualSubtotal, diff, flagged: Math.abs(diff) > 1 };
+}
+
+// ---------- UNITS ----------
+$('showAddUnit').addEventListener('click', ()=>{
+  $('addUnitCard').style.display = $('addUnitCard').style.display==='none' ? 'block' : 'none';
+});
+
+$('unitForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const payload = {
+    unit_number: $('uNumber').value.trim(),
+    unit_type: $('uType').value,
+    description: $('uDesc').value.trim(),
+    weekly_base_rate: Number($('uBaseRate').value)||0,
+    included_miles: $('uIncludedMiles').value === '' ? null : Number($('uIncludedMiles').value),
+    per_mile_rate: Number($('uPerMile').value)||0,
+    environmental_fee: Number($('uEnvFee').value)||0
+  };
+  const { error } = await sb.from('equipment_units').insert(payload);
+  if(error){ alert('Error saving unit: ' + error.message); return; }
+  $('unitForm').reset();
+  $('addUnitCard').style.display='none';
+  await loadUnits();
+  renderUnitsTable();
+  renderUnitSelect();
+});
+
+function renderUnitsTable(){
+  const tbody = document.querySelector('#unitsTable tbody');
+  tbody.innerHTML = '';
+  $('unitsEmpty').style.display = UNITS.length ? 'none' : 'block';
+  UNITS.forEach(u=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><strong>${u.unit_number}</strong></td><td>${u.unit_type}</td><td>${u.description||''}</td>
+      <td>${fmt(u.weekly_base_rate)}</td><td>${u.included_miles ?? '—'}</td><td>$${Number(u.per_mile_rate).toFixed(4)}</td><td>${fmt(u.environmental_fee)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderUnitSelect(){
+  const sel = $('cUnit');
+  sel.innerHTML = '<option value="">Select a unit...</option>';
+  UNITS.forEach(u=>{
+    const opt = document.createElement('option');
+    opt.value = u.id;
+    opt.textContent = `${u.unit_number} — ${u.description || u.unit_type}`;
+    sel.appendChild(opt);
+  });
+}
+
+// ---------- CHARGE ENTRY ----------
+function livePreview(){
+  const unit = UNITS.find(u=>u.id === $('cUnit').value);
+  const preview = $('chargePreview');
+  if(!unit){ preview.style.display='none'; return; }
+  const charge = {
+    maintenance_days: $('cMaintDays').value,
+    miles_driven: $('cMiles').value,
+    actual_base_charge: $('cBase').value,
+    actual_mileage_charge: $('cMileageCharge').value,
+    actual_environmental_fee: $('cEnvFee').value,
+    actual_other_fees: $('cOtherFees').value
+  };
+  const r = computeExpected(unit, charge);
+  preview.style.display = 'block';
+  preview.innerHTML = `<strong>Expected subtotal: ${fmt(r.expectedSubtotal)}</strong> (base ${fmt(r.expectedBase)} + mileage ${fmt(r.expectedMileage)} + env fee ${fmt(r.expectedEnv)})
+    &nbsp;|&nbsp; Actual subtotal: ${fmt(r.actualSubtotal)}
+    &nbsp;|&nbsp; <span style="color:${r.flagged?'#b5341c':'#1a8a5a'};font-weight:700;">Difference: ${r.diff>=0?'+':''}${fmt(r.diff)} ${r.flagged?'⚠ FLAGGED':'✓ OK'}</span>`;
+}
+['cUnit','cMaintDays','cMiles','cBase','cMileageCharge','cEnvFee','cOtherFees'].forEach(id=>{
+  $(id).addEventListener('input', livePreview);
+  $(id).addEventListener('change', livePreview);
+});
+
+$('chargeForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const { data:{ user } } = await sb.auth.getUser();
+  const payload = {
+    unit_id: $('cUnit').value,
+    week_start_date: $('cWeekStart').value,
+    agreement_number: $('cAgreement').value.trim(),
+    actual_base_charge: Number($('cBase').value)||0,
+    miles_driven: Number($('cMiles').value)||0,
+    actual_mileage_charge: Number($('cMileageCharge').value)||0,
+    actual_environmental_fee: Number($('cEnvFee').value)||0,
+    actual_other_fees: Number($('cOtherFees').value)||0,
+    actual_tax: Number($('cTax').value)||0,
+    actual_total_charged: Number($('cTotal').value)||0,
+    maintenance_days: Number($('cMaintDays').value)||0,
+    maintenance_notes: $('cMaintNotes').value.trim(),
+    notes: $('cNotes').value.trim(),
+    created_by: user ? user.id : null
+  };
+  if(!payload.unit_id){ alert('Please select a unit.'); return; }
+  const { error } = await sb.from('equipment_weekly_charges').insert(payload);
+  if(error){ alert('Error saving entry: ' + error.message); return; }
+  $('chargeForm').reset();
+  $('chargePreview').style.display='none';
+  await loadCharges();
+  renderHistory();
+  renderReports();
+  renderStats();
+  alert('Entry saved.');
+});
+
+// ---------- HISTORY ----------
+function renderHistory(){
+  const tbody = document.querySelector('#historyTable tbody');
+  tbody.innerHTML = '';
+  $('historyEmpty').style.display = CHARGES.length ? 'none' : 'block';
+  CHARGES.forEach(c=>{
+    const unit = UNITS.find(u=>u.id === c.unit_id);
+    const r = computeExpected(unit, c);
+    if(!r) return;
+    const tr = document.createElement('tr');
+    if(r.flagged) tr.classList.add('flagged');
+    tr.innerHTML = `<td>${c.week_start_date}</td><td>${unit?unit.unit_number:'—'}</td><td>${c.agreement_number||'—'}</td>
+      <td>${fmt(c.actual_total_charged)}</td><td>${fmt(r.expectedSubtotal)}</td>
+      <td>${r.diff>=0?'+':''}${fmt(r.diff)}</td>
+      <td><span class="pill ${r.flagged?'pill-bad':'pill-ok'}">${r.flagged?'Flagged':'OK'}</span></td>
+      <td>${c.maintenance_days}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------- REPORTS ----------
+function renderReports(){
+  const tbody = document.querySelector('#reportsTable tbody');
+  tbody.innerHTML = '';
+  const byUnit = {};
+  CHARGES.forEach(c=>{
+    const unit = UNITS.find(u=>u.id === c.unit_id);
+    if(!unit) return;
+    const r = computeExpected(unit, c);
+    if(!byUnit[unit.id]) byUnit[unit.id] = { unit, weeks:0, totalCharged:0, totalExpected:0, totalDiff:0, totalMiles:0 };
+    const b = byUnit[unit.id];
+    b.weeks++;
+    b.totalCharged += Number(c.actual_total_charged)||0;
+    b.totalExpected += r.expectedSubtotal;
+    b.totalDiff += r.diff;
+    b.totalMiles += Number(c.miles_driven)||0;
+  });
+  const rows = Object.values(byUnit);
+  $('reportsEmpty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(b=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><strong>${b.unit.unit_number}</strong></td><td>${b.weeks}</td><td>${fmt(b.totalCharged)}</td>
+      <td>${fmt(b.totalExpected)}</td>
+      <td style="color:${Math.abs(b.totalDiff)>1?'#b5341c':'#1a8a5a'};font-weight:700;">${b.totalDiff>=0?'+':''}${fmt(b.totalDiff)}</td>
+      <td>${(b.totalMiles/b.weeks).toFixed(0)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ---------- STATS ----------
+function renderStats(){
+  const totalUnits = UNITS.length;
+  const totalCharged = CHARGES.reduce((s,c)=>s+(Number(c.actual_total_charged)||0),0);
+  let flaggedCount = 0, totalDiscrepancy = 0;
+  CHARGES.forEach(c=>{
+    const unit = UNITS.find(u=>u.id===c.unit_id);
+    const r = computeExpected(unit, c);
+    if(r){ if(r.flagged) flaggedCount++; totalDiscrepancy += r.diff; }
+  });
+  $('statGrid').innerHTML = `
+    <div class="stat-card"><div class="num">${totalUnits}</div><div class="label">Units Tracked</div></div>
+    <div class="stat-card"><div class="num">${fmt(totalCharged)}</div><div class="label">Total Charged (all time)</div></div>
+    <div class="stat-card"><div class="num" style="color:${flaggedCount?'#b5341c':'#1a8a5a'};">${flaggedCount}</div><div class="label">Flagged Weeks</div></div>
+    <div class="stat-card"><div class="num" style="color:${totalDiscrepancy>1?'#b5341c':'#1a8a5a'};">${totalDiscrepancy>=0?'+':''}${fmt(totalDiscrepancy)}</div><div class="label">Net Discrepancy</div></div>
+  `;
+}
+
+checkSession();
+</script>
+</body>
+</html>
