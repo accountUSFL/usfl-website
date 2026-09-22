@@ -335,7 +335,13 @@
 const SUPABASE_URL = "https://zddpivuekcxkltmdvksk.supabase.co";
 const SUPABASE_KEY = "sb_publishable_0GDzLGv4vzmat_vxv1lScQ_DT4wtsLa";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js";
+// pdf.js is only needed for the batch PDF upload feature. If the CDN is slow/blocked,
+// don't let that take down the rest of the page (login, transaction log, etc.).
+if(typeof pdfjsLib !== 'undefined'){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js";
+} else {
+  console.warn('pdf.js failed to load from CDN — PDF batch upload will be disabled, rest of the app still works.');
+}
 
 let UNITS = [];
 let CHARGES = [];
@@ -675,6 +681,11 @@ function parsePenskeText(text){
 $('pdfUpload').addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
   if(!files.length) return;
+  if(typeof pdfjsLib === 'undefined'){
+    $('pdfStatus').textContent = 'PDF reader failed to load (network/CDN issue) — try refreshing the page, or use manual entry below.';
+    e.target.value = '';
+    return;
+  }
   $('pdfStatus').textContent = `Parsing ${files.length} file(s)...`;
   BATCH_ROWS = [];
   for(const file of files){
