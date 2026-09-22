@@ -6,7 +6,8 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Equipment Tracker | US Freight Logistics LLC</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --navy:#0d1b3d; --navy2:#132a5e; --red:#e8462c; --ink:#12172a;
@@ -44,6 +45,21 @@
   .tabs{display:flex;gap:8px;margin-bottom:28px;border-bottom:1px solid var(--line);}
   .tab-btn{background:none;border:none;padding:12px 18px;font-weight:700;font-size:.9rem;color:var(--slate);cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-1px;}
   .tab-btn.active{color:var(--navy);border-bottom-color:var(--red);}
+  .subtabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--line);}
+  .subtab-btn{background:none;border:none;padding:8px 14px;font-weight:700;font-size:.82rem;color:var(--slate);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:7px;}
+  .subtab-btn.active{color:var(--navy);border-bottom-color:var(--red);}
+  .subtab-count{background:#eee;color:var(--slate);font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:10px;}
+  .subtab-btn.active .subtab-count{background:var(--red);color:#fff;}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,25,35,.5);z-index:1000;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal-box{background:#fff;border-radius:10px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;padding:24px 28px;}
+  .modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;}
+  .modal-header h2{margin:0;font-size:1.2rem;}
+  .modal-subtitle{color:var(--slate);font-size:.85rem;margin:0 0 16px;}
+  .modal-close{background:none;border:none;font-size:1.3rem;line-height:1;cursor:pointer;color:var(--slate);padding:2px 6px;}
+  .modal-section-title{text-transform:uppercase;letter-spacing:.03em;font-size:.72rem;color:#9aa1ac;font-weight:700;margin:18px 0 8px;border-top:1px solid var(--line);padding-top:14px;}
+  .modal-section-title:first-of-type{border-top:none;margin-top:0;padding-top:0;}
+  .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
   .tab-panel{display:none;}
   .tab-panel.active{display:block;}
 
@@ -63,12 +79,18 @@
   .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;}
   .pill-ok{background:#e9f7f0;color:var(--green);}
   .pill-bad{background:#fce9e5;color:var(--red);}
+  .pill-warn{background:#fef6e0;color:#a3720c;}
+  .pill-info{background:#e8f0fb;color:#1a5aa8;}
   .table-scroll{overflow-x:auto;}
   .muted{color:var(--muted);font-size:.82rem;}
   .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px;}
   .stat-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;}
   .stat-card .num{font-size:1.6rem;font-weight:800;color:var(--navy);}
   .stat-card .label{font-size:.78rem;color:var(--slate);font-weight:600;margin-top:2px;}
+  .stat-card .sublabel{font-size:.74rem;color:#9aa1ac;font-weight:600;margin-top:6px;}
+  .table-scroll{position:relative;}
+  .table-scroll table th:last-child, .table-scroll table td:last-child{position:sticky;right:0;background:#fff;box-shadow:-6px 0 8px -6px rgba(0,0,0,.15);}
+  .table-scroll table thead th:last-child{z-index:2;}
   select{padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:.9rem;}
   .empty-state{text-align:center;padding:40px 20px;color:var(--muted);}
 </style>
@@ -106,16 +128,29 @@
 
     <div class="stat-grid" id="statGrid"></div>
 
+    <div class="card" id="pmDueCard" style="margin-bottom:24px;display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" id="pmDueToggle">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span id="pmDueBadge" class="pill pill-bad"></span>
+          <strong style="color:var(--navy);">Upcoming PM Due (next 14 days)</strong>
+        </div>
+        <span id="pmDueChevron" style="color:var(--slate);font-weight:700;">▾</span>
+      </div>
+      <div id="pmDueList" style="margin-top:14px;display:none;"></div>
+    </div>
+
     <div class="tabs">
-      <button class="tab-btn active" data-tab="entry">Log Weekly Charge</button>
+      <button class="tab-btn active" data-tab="txlog">Transaction Log</button>
+      <button class="tab-btn" data-tab="maint">Maintenance</button>
       <button class="tab-btn" data-tab="history">Charge History</button>
       <button class="tab-btn" data-tab="units">Units</button>
       <button class="tab-btn" data-tab="reports">Per-Unit Reports</button>
-      <button class="tab-btn" data-tab="txlog">Transaction Log</button>
+      <button class="tab-btn" data-tab="entry">Log Weekly Charge</button>
+      <button class="tab-btn" data-tab="vendorstmt">Vendor Statements</button>
     </div>
 
     <!-- LOG WEEKLY CHARGE -->
-    <div class="tab-panel active" id="tab-entry">
+    <div class="tab-panel" id="tab-entry">
       <div class="card" style="margin-bottom:20px;">
         <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Batch upload rental agreements</h2>
         <p class="muted" style="margin-bottom:14px;">Select all of this week's Penske PDFs at once (works for 1 or 90+ units). Each one gets parsed and matched to a unit automatically — review the table below and fix anything before saving. Units that don't match an existing unit number are flagged so you can add them first.</p>
@@ -131,8 +166,8 @@
         <table id="batchTable">
           <thead><tr>
             <th>File</th><th>Unit</th><th>Week Start</th><th>Agreement #</th><th>Base ($)</th>
-            <th>Miles</th><th>Mileage $</th><th>Env Fee $</th><th>Tax $</th><th>Total $</th>
-            <th>Maint. Days</th><th>Status</th>
+            <th>Miles</th><th>Mileage $</th><th>Fees $</th><th>Tax $</th><th>Total $</th>
+            <th>Maint. Days</th><th>Status</th><th></th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -152,6 +187,9 @@
             <div class="field"><label>Agreement #</label>
               <input type="text" id="cAgreement" placeholder="e.g. 15994669">
             </div>
+            <div class="field"><label>Billing Period (weeks) <span class="muted">(1 = weekly, 4 ≈ monthly)</span></label>
+              <input type="number" step="0.25" id="cBillingWeeks" value="1">
+            </div>
           </div>
           <div class="form-grid">
             <div class="field"><label>Base Charge Billed ($)</label>
@@ -165,7 +203,7 @@
             </div>
           </div>
           <div class="form-grid">
-            <div class="field"><label>Environmental Fee Billed ($)</label>
+            <div class="field"><label>Fees Billed ($)</label>
               <input type="number" step="0.01" id="cEnvFee" value="35.00">
             </div>
             <div class="field"><label>Other Fees Billed ($)</label>
@@ -173,6 +211,14 @@
             </div>
             <div class="field"><label>Tax Billed ($)</label>
               <input type="number" step="0.01" id="cTax" value="0">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Daily Fee Rate ($/day) <span class="muted">(e.g. IdealLease's combined daily fees)</span></label>
+              <input type="number" step="0.01" id="cDailyFeeRate" value="0">
+            </div>
+            <div class="field"><label>Fee Days</label>
+              <input type="number" step="1" id="cFeeDays" value="0">
             </div>
           </div>
           <div class="form-grid">
@@ -218,27 +264,100 @@
         <h2>Units</h2>
         <button class="btn btn-sm btn-outline" id="showAddUnit">+ Add Unit</button>
       </div>
-      <div class="card" id="addUnitCard" style="display:none;">
-        <form id="unitForm">
-          <div class="form-grid">
-            <div class="field"><label>Unit Number</label><input type="text" id="uNumber" required placeholder="e.g. 333921"></div>
-            <div class="field"><label>Type</label>
-              <select id="uType"><option value="trailer">Trailer</option><option value="truck">Truck</option></select>
+      <div class="modal-overlay" id="unitModalOverlay">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h2 id="unitModalTitle">Add unit</h2>
+            <button type="button" class="modal-close" id="unitModalClose" aria-label="Close">&times;</button>
+          </div>
+          <p class="modal-subtitle" id="unitModalSubtitle"></p>
+          <form id="unitForm">
+            <input type="hidden" id="uEditId" value="">
+            <div class="modal-section-title">Basics</div>
+            <div class="form-grid">
+              <div class="field"><label>Unit Number</label><input type="text" id="uNumber" required placeholder="e.g. 333921"></div>
+              <div class="field"><label>Status</label>
+                <select id="uStatus">
+                  <option value="active">Active</option>
+                  <option value="in_service">In Service</option>
+                  <option value="for_pm">For PM</option>
+                  <option value="out_of_service">Out of Service</option>
+                </select>
+              </div>
+              <div class="field"><label>Type</label>
+                <select id="uType">
+                  <option value="refrigerated_trailer">Refrigerated Trailer</option>
+                  <option value="dry_van_trailer">Dry Van Trailer</option>
+                  <option value="day_cab_truck">Day Cab Truck</option>
+                  <option value="sleeper_truck">Sleeper Truck</option>
+                </select>
+              </div>
+              <div class="field"><label>Vendor</label>
+                <select id="uVendor">
+                  <option value="">Select vendor...</option>
+                  <option value="Penske">Penske</option>
+                  <option value="Boxwheel">Boxwheel</option>
+                  <option value="IdealLease">IdealLease</option>
+                </select>
+              </div>
             </div>
-            <div class="field"><label>Description</label><input type="text" id="uDesc" placeholder="53FT T/A Reefer Trailer"></div>
-          </div>
-          <div class="form-grid">
-            <div class="field"><label>Weekly Base Rate ($)</label><input type="number" step="0.01" id="uBaseRate" required></div>
-            <div class="field"><label>Included Miles (blank = none)</label><input type="number" step="1" id="uIncludedMiles"></div>
-            <div class="field"><label>Per-Mile Rate ($)</label><input type="number" step="0.0001" id="uPerMile" value="0.04"></div>
-            <div class="field"><label>Environmental Fee ($)</label><input type="number" step="0.01" id="uEnvFee" value="35.00"></div>
-          </div>
-          <button class="btn btn-sm" type="submit" style="width:auto;">Save Unit</button>
-        </form>
+
+            <div class="modal-section-title">Vehicle info</div>
+            <div class="form-grid">
+              <div class="field"><label>Year Make Model</label><input type="text" id="uYearMakeModel" placeholder="2025 International LT"></div>
+              <div class="field"><label>VIN</label><input type="text" id="uVin" placeholder="3HSDZSZR9SN488810"></div>
+              <div class="field"><label>Plate and State</label><input type="text" id="uPlateState" placeholder="86089A (NV)"></div>
+              <div class="field"><label>Location</label><input type="text" id="uLocation" list="uLocationList" placeholder="Las Vegas"><datalist id="uLocationList"></datalist></div>
+              <div class="field"><label>License Exp Date</label><input type="date" id="uLicenseExp"></div>
+              <div class="field"><label>Notes</label><input type="text" id="uDesc" placeholder="Any other notes"></div>
+            </div>
+
+            <div class="modal-section-title">Rates</div>
+            <div class="form-grid">
+              <div class="field"><label>Weekly Base Rate ($)</label><input type="number" step="0.01" id="uBaseRate" required></div>
+              <div class="field"><label>Included Miles (blank = none)</label><input type="number" step="1" id="uIncludedMiles"></div>
+              <div class="field"><label>Per-Mile Rate ($)</label><input type="number" step="0.0001" id="uPerMile" value="0.04"></div>
+              <div class="field"><label>Fees ($/week)</label><input type="number" step="0.01" id="uEnvFee" value="35.00"></div>
+              <div class="field"><label>Next PM Due Date</label><input type="date" id="uPmDue"></div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" class="btn btn-sm btn-outline" id="unitModalCancel" style="width:auto;">Cancel</button>
+              <button class="btn btn-sm" type="submit" style="width:auto;">Save Unit</button>
+            </div>
+          </form>
+        </div>
       </div>
+
+      <div class="card" id="bulkUnitCard">
+        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Bulk import units</h2>
+        <p class="muted" style="margin-bottom:14px;">Have your team fill out the <a href="units-import-template.xlsx" download style="color:var(--red);font-weight:700;">units import template</a>, then upload it here. Matches by Unit Number — existing units get updated, new ones get added.</p>
+        <input type="file" id="unitUpload" accept=".xlsx,.xls,.csv">
+        <div id="unitUploadStatus" class="muted" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card table-scroll" id="unitBatchCard" style="display:none;">
+        <div class="section-row" style="margin-bottom:12px;">
+          <h2 style="font-size:1.1rem;">Review import (<span id="unitBatchCount">0</span> rows)</h2>
+          <button class="btn btn-sm" id="saveUnitBatchBtn" style="width:auto;">Save All Valid Rows</button>
+        </div>
+        <table id="unitBatchTable">
+          <thead><tr>
+            <th>Unit #</th><th>Type</th><th>Description</th><th>Weekly Rate</th>
+            <th>Included Miles</th><th>Per-Mile Rate</th><th>Fees</th><th>Next PM Due</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="subtabs" id="unitSubtabs">
+        <button class="subtab-btn active" data-unitsubtab="trucks">Trucks <span class="subtab-count" id="unitSubtabCountTrucks">0</span></button>
+        <button class="subtab-btn" data-unitsubtab="trailers">Trailers <span class="subtab-count" id="unitSubtabCountTrailers">0</span></button>
+      </div>
+
       <div class="card table-scroll">
         <table id="unitsTable">
-          <thead><tr><th>Unit #</th><th>Type</th><th>Description</th><th>Weekly Rate</th><th>Included Miles</th><th>Per-Mile Rate</th><th>Env Fee</th></tr></thead>
+          <thead><tr><th>Status</th><th>Unit #</th><th>Type</th><th>Vendor</th><th>Year Make Model</th><th>VIN</th><th>Plate and State</th><th>Location</th><th>License Exp</th><th>Notes</th><th>Weekly Rate</th><th>Included Miles</th><th>Per-Mile Rate</th><th>Fees ($/week)</th><th>Next PM Due</th><th>Actions</th></tr></thead>
           <tbody></tbody>
         </table>
         <div class="empty-state" id="unitsEmpty" style="display:none;">No units added yet — add your first unit above.</div>
@@ -257,53 +376,83 @@
       </div>
     </div>
 
+    <!-- VENDOR STATEMENTS -->
+    <div class="tab-panel" id="tab-vendorstmt">
+      <div class="section-row"><h2>Vendor Statements</h2></div>
+      <p class="muted" style="margin-bottom:14px;">For Boxwheel and IdealLease: they invoice monthly and you pay by ACH, so any gap between what was invoiced and what was paid carries forward to next month. Log each month's invoice and ACH payment here and the running balance tracks itself.</p>
+
+      <div class="stat-grid" id="vendorBalanceGrid" style="margin-bottom:20px;"></div>
+
+      <div class="card">
+        <form id="vendorStmtForm">
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+            <div class="field"><label>Vendor</label>
+              <select id="vsVendor" required>
+                <option value="">— select —</option>
+                <option>Boxwheel</option>
+                <option>IdealLease</option>
+              </select>
+            </div>
+            <div class="field"><label>Statement Month</label><input type="month" id="vsMonth" required></div>
+            <div class="field"><label>Invoice Amount ($)</label><input type="number" step="0.01" id="vsInvoice" value="0" required></div>
+            <div class="field"><label>ACH Amount Paid ($)</label><input type="number" step="0.01" id="vsAch" value="0" required></div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+            <div class="field"><label>Balance Brought Forward ($) <span class="muted">(auto-filled from last month)</span></label><input type="number" step="0.01" id="vsBalanceIn" value="0"></div>
+            <div class="field"><label>Invoice # <span class="muted">(optional)</span></label><input type="text" id="vsInvoiceNum"></div>
+          </div>
+          <div id="vsPreview" class="card" style="background:var(--panel);margin-bottom:16px;"></div>
+          <div class="field">
+            <label>Notes <span class="muted">(optional)</span></label>
+            <input type="text" id="vsNotes">
+          </div>
+          <button class="btn btn-sm" type="submit" style="width:auto;">Save Statement</button>
+        </form>
+      </div>
+
+      <div class="section-row" style="margin-top:8px;">
+        <h2 style="font-size:1.1rem;">Statement History</h2>
+        <select id="vsFilterVendor">
+          <option value="">All vendors</option>
+          <option>Boxwheel</option>
+          <option>IdealLease</option>
+        </select>
+      </div>
+      <div class="card table-scroll">
+        <table id="vendorStmtTable">
+          <thead><tr>
+            <th>Month</th><th>Vendor</th><th>Invoice</th><th>ACH Paid</th>
+            <th>Balance In</th><th>Balance Out</th><th>Invoice #</th><th>Notes</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="vendorStmtEmpty" style="display:none;">No statements logged yet.</div>
+      </div>
+    </div>
+
     <!-- TRANSACTION LOG -->
-    <div class="tab-panel" id="tab-txlog">
+    <div class="tab-panel active" id="tab-txlog">
       <div class="section-row"><h2>Transaction Log</h2></div>
       <p class="muted" style="margin-bottom:14px;">For logging individual card transactions as Penske runs them — pre-authorizations, true-ups, holds. One row per transaction. Built for fast entry while you're on the phone with them.</p>
 
       <div class="card" style="margin-bottom:20px;">
         <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Quick weekly entry</h2>
-        <p class="muted" style="margin-bottom:14px;">Just like the sheet: unit #, type, this week's due amount, and next week's rewrite amount. Type/location auto-fill from the unit if it's already on file — edit if it's wrong.</p>
+        <p class="muted" style="margin-bottom:14px;">Just like the sheet: unit #, type, card used, this week's due amount, and next week's rewrite amount. Type/location auto-fill from the unit if it's already on file — edit if it's wrong. Both post on the same Friday you select — the due amount settles the week that's ending, and the rewrite is the pre-auth for the week that starts that day.</p>
         <form id="txQuickForm">
           <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
             <div class="field"><label>Unit #</label><input type="text" id="txqUnit" list="txqUnitList" required placeholder="e.g. 405134"><datalist id="txqUnitList"></datalist></div>
             <div class="field"><label>Type</label><input type="text" id="txqType" placeholder="trailer / truck"></div>
-            <div class="field"><label>Location</label><input type="text" id="txqLocation" list="txLocationList" placeholder="Penske Las Vegas"></div>
-            <div class="field"><label>Week Start Date</label><input type="date" id="txqWeekDate" required></div>
+            <div class="field"><label>Location</label><input type="text" id="txqLocation" list="txLocationList"><datalist id="txLocationList"></datalist></div>
+            <div class="field"><label>Week Start (Friday)</label><select id="txqWeek" required><option value="">— select week —</option></select></div>
           </div>
           <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
             <div class="field"><label>This Week's Due Amount ($)</label><input type="number" step="0.01" id="txqDue" required placeholder="0.00"></div>
-            <div class="field"><label>Next Week's Rewrite Amount ($) <span class="muted">(optional)</span></label><input type="number" step="0.01" id="txqRewrite" placeholder="0.00"></div>
+            <div class="field"><label>Next Week's Rewrite Amount ($) <span class="muted">(optional — same date, covers this Fri–next Fri)</span></label><input type="number" step="0.01" id="txqRewrite" placeholder="0.00"></div>
           </div>
-          <div class="field">
-            <label>Notes <span class="muted">(optional)</span></label>
-            <input type="text" id="txqNotes" placeholder="anything worth flagging">
-          </div>
-          <button class="btn btn-sm" type="submit" style="width:auto;">Save Week</button>
-        </form>
-      </div>
-
-      <div class="card">
-        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Or log a single transaction manually</h2>
-        <p class="muted" style="margin-bottom:14px;">For holds, card details, or anything the quick form above doesn't cover.</p>
-        <form id="txForm">
-          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));">
-            <div class="field"><label>Unit #</label><input type="text" id="txUnit" required placeholder="e.g. 405134"></div>
-            <div class="field"><label>Location</label>
-              <input type="text" id="txLocation" list="txLocationList" placeholder="Penske Las Vegas">
-              <datalist id="txLocationList"></datalist>
-            </div>
-            <div class="field"><label>Payment Date</label><input type="date" id="txDate" required></div>
-            <div class="field"><label>Amount ($)</label><input type="number" step="0.01" id="txAmount" value="0" required></div>
-          </div>
-          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));">
-            <div class="field"><label>Auth Hold Start</label><input type="date" id="txHoldStart"></div>
-            <div class="field"><label>Auth Hold End</label><input type="date" id="txHoldEnd"></div>
-            <div class="field"><label>Auth Hold Amount ($)</label><input type="number" step="0.01" id="txHoldAmount" placeholder="optional"></div>
-            <div class="field"><label>Card Last 4</label><input type="text" id="txCardLast4" maxlength="4" placeholder="4693"></div>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+            <div class="field"><label>Card Last 4</label><input type="text" id="txqCardLast4" maxlength="4"></div>
             <div class="field"><label>Card Type</label>
-              <select id="txCardType">
+              <select id="txqCardType">
                 <option value="">—</option>
                 <option>VISA</option>
                 <option>AMEX</option>
@@ -313,11 +462,41 @@
             </div>
           </div>
           <div class="field">
-            <label>Notes</label>
-            <input type="text" id="txNotes" placeholder="e.g. Pre Authorization for 9/18/2026-9/25/2026">
+            <label>Notes <span class="muted">(optional)</span></label>
+            <input type="text" id="txqNotes" placeholder="anything worth flagging">
           </div>
-          <button class="btn btn-sm" type="submit" style="width:auto;">Add Transaction</button>
+          <button class="btn btn-sm" type="submit" style="width:auto;">Save Week</button>
         </form>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Paste a weekly invoice list</h2>
+        <p class="muted" style="margin-bottom:14px;">For vendors like IdealLease who email a plain list of invoice numbers and amounts each week — no PDF, no unit number. Paste the lines below, review, and save. Unit # is left blank for you to fill in later since it's not in the email; repair-type invoices can be routed to Maintenance instead of Transaction Log.</p>
+        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
+          <div class="field"><label>Vendor</label>
+            <input type="text" id="wlVendor" list="txLocationList">
+          </div>
+          <div class="field"><label>Week / Payment Date</label><input type="date" id="wlDate"></div>
+        </div>
+        <div class="field">
+          <label>Paste lines here <span class="muted">(one per line: "INVOICE# $amount")</span></label>
+          <textarea id="wlPaste" rows="6" style="width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.9rem;"></textarea>
+        </div>
+        <button class="btn btn-sm btn-outline" id="wlParseBtn" type="button" style="width:auto;">Parse List</button>
+      </div>
+
+      <div class="card table-scroll" id="wlReviewCard" style="display:none;margin-bottom:20px;">
+        <div class="section-row" style="margin-bottom:12px;">
+          <h2 style="font-size:1.1rem;">Review (<span id="wlCount">0</span> lines, total <span id="wlTotal">$0.00</span>)</h2>
+          <button class="btn btn-sm" id="wlSaveBtn" style="width:auto;">Save All</button>
+        </div>
+        <table id="wlTable">
+          <thead><tr>
+            <th>Invoice #</th><th>Amount</th><th>Unit # <span class="muted">(optional)</span></th>
+            <th>Route To</th><th>Notes</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
 
       <div class="section-row" style="margin-top:8px;">
@@ -352,6 +531,103 @@
       </div>
     </div>
 
+    <!-- MAINTENANCE -->
+    <div class="tab-panel" id="tab-maint">
+      <div class="section-row"><h2>Maintenance / Service Invoices</h2></div>
+      <p class="muted" style="margin-bottom:14px;">Log what you paid whenever a unit goes in for PM or repairs — regardless of whether Penske or a third-party shop did the work.</p>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Batch upload repair/service PDFs</h2>
+        <p class="muted" style="margin-bottom:14px;">Penske "Repair Detail" PDFs auto-fill completely. Penske's consolidated "Maintenance Invoice" PDFs are image-based (no readable text), so those get one row per file with just the invoice number filled in — you'll fill in the rest from the invoice. Review everything below before saving either way.</p>
+        <input type="file" id="maintUpload" accept="application/pdf" multiple>
+        <div id="maintUploadStatus" class="muted" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card table-scroll" id="maintBatchCard" style="display:none;margin-bottom:20px;">
+        <div class="section-row" style="margin-bottom:12px;">
+          <h2 style="font-size:1.1rem;">Review batch (<span id="maintBatchCount">0</span> parsed)</h2>
+          <button class="btn btn-sm" id="saveMaintBatchBtn" style="width:auto;">Save All Rows</button>
+        </div>
+        <table id="maintBatchTable">
+          <thead><tr>
+            <th>File</th><th>Unit #</th><th>Service Date</th><th>Type</th><th>Vendor</th>
+            <th>Description</th><th>Amount</th><th>Days Down</th><th>Invoice/RO #</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Or log one manually</h2>
+        <form id="maintForm">
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+            <div class="field"><label>Unit #</label><input type="text" id="mUnit" list="txqUnitList" required placeholder="e.g. 405134"></div>
+            <div class="field"><label>Type</label><input type="text" id="mUnitType" placeholder="auto-fills from unit"></div>
+            <div class="field"><label>Service Date</label><input type="date" id="mDate" required></div>
+            <div class="field"><label>Service Type</label>
+              <select id="mServiceType">
+                <option value="PM">PM</option>
+                <option value="Repair">Repair</option>
+                <option value="Tire">Tire</option>
+                <option value="Brake">Brake</option>
+                <option value="Engine">Engine</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+            <div class="field"><label>Vendor</label><input type="text" id="mVendor" list="mVendorList" placeholder="Penske / shop name"><datalist id="mVendorList"></datalist></div>
+            <div class="field"><label>Amount Paid ($)</label><input type="number" step="0.01" id="mAmount" value="0" required></div>
+            <div class="field"><label>Days Down</label><input type="number" step="0.5" id="mDaysDown" value="0"></div>
+            <div class="field"><label>Invoice #</label><input type="text" id="mInvoiceNum" placeholder="optional"></div>
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <input type="text" id="mDescription" placeholder="e.g. brake pads + rotors, front axle">
+          </div>
+          <div class="field" style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+            <input type="checkbox" id="mUpdatePmDue" style="width:auto;">
+            <label for="mUpdatePmDue" style="margin:0;">This was a PM — update the unit's Next PM Due Date</label>
+          </div>
+          <div class="field" id="mNextPmField" style="display:none;">
+            <label>New Next PM Due Date</label>
+            <input type="date" id="mNextPmDate">
+          </div>
+          <div class="field">
+            <label>Notes <span class="muted">(optional)</span></label>
+            <input type="text" id="mNotes">
+          </div>
+          <button class="btn btn-sm" type="submit" style="width:auto;">Save Service Record</button>
+        </form>
+      </div>
+
+      <div class="section-row" style="margin-top:8px;">
+        <h2 style="font-size:1.1rem;">All Service Records</h2>
+        <input type="text" id="mFilterUnit" placeholder="Filter by unit #" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;">
+      </div>
+      <div class="card table-scroll">
+        <table id="maintTable">
+          <thead><tr>
+            <th>Date</th><th>Unit</th><th>Type</th><th>Service</th><th>Vendor</th><th>Description</th>
+            <th>Amount</th><th>Days Down</th><th>Invoice #</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="maintEmpty" style="display:none;">No service records logged yet.</div>
+      </div>
+
+      <div class="section-row" style="margin-top:8px;">
+        <h2 style="font-size:1.1rem;">Per-Unit Maintenance Totals</h2>
+      </div>
+      <div class="card table-scroll">
+        <table id="maintRollupTable">
+          <thead><tr><th>Unit</th><th>Services</th><th>Total Paid</th><th>Total Days Down</th><th>Last Service</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="maintRollupEmpty" style="display:none;">No data yet.</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -362,7 +638,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // pdf.js is only needed for the batch PDF upload feature. If the CDN is slow/blocked,
 // don't let that take down the rest of the page (login, transaction log, etc.).
 if(typeof pdfjsLib !== 'undefined'){
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
 } else {
   console.warn('pdf.js failed to load from CDN — PDF batch upload will be disabled, rest of the app still works.');
 }
@@ -370,6 +646,8 @@ if(typeof pdfjsLib !== 'undefined'){
 let UNITS = [];
 let CHARGES = [];
 let TRANSACTIONS = [];
+let MAINTENANCE = [];
+let VENDOR_STMTS = [];
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => "$" + (Number(n)||0).toFixed(2);
@@ -429,6 +707,8 @@ async function loadAll(){
   await loadUnits();
   await loadCharges();
   await loadTransactions();
+  await loadMaintenance();
+  await loadVendorStatements();
   renderUnitsTable();
   renderUnitSelect();
   renderHistory();
@@ -436,6 +716,11 @@ async function loadAll(){
   renderStats();
   renderTransactions();
   renderTxRollup();
+  renderPmDueWidget();
+  renderMaintenance();
+  renderMaintRollup();
+  renderVendorStatements();
+  renderVendorBalances();
 }
 
 async function loadUnits(){
@@ -453,12 +738,26 @@ async function loadTransactions(){
   if(error){ console.error(error); return; }
   TRANSACTIONS = data || [];
 }
+async function loadMaintenance(){
+  const { data, error } = await sb.from('equipment_maintenance').select('*').order('service_date', {ascending:false}).order('created_at', {ascending:false});
+  if(error){ console.error(error); return; }
+  MAINTENANCE = data || [];
+}
+async function loadVendorStatements(){
+  const { data, error } = await sb.from('equipment_vendor_statements').select('*').order('statement_month', {ascending:false});
+  if(error){ console.error(error); return; }
+  VENDOR_STMTS = data || [];
+}
 
 // ---------- EXPECTED / DISCREPANCY CALC ----------
 function computeExpected(unit, charge){
   if(!unit) return null;
+  // billing_weeks lets one entry cover more than a single week (e.g. IdealLease bills
+  // monthly, ~4 weeks at a time) without changing Penske's normal weekly math — it
+  // defaults to 1, so existing weekly entries compute exactly as before.
+  const billingWeeks = Number(charge.billing_weeks) || 1;
   const dailyRate = unit.weekly_base_rate / 7;
-  const expectedBase = Math.max(0, unit.weekly_base_rate - dailyRate * (Number(charge.maintenance_days)||0));
+  const expectedBase = Math.max(0, unit.weekly_base_rate * billingWeeks - dailyRate * (Number(charge.maintenance_days)||0));
   let expectedMileage = 0;
   const miles = Number(charge.miles_driven)||0;
   if(unit.included_miles !== null && unit.included_miles !== undefined){
@@ -466,50 +765,205 @@ function computeExpected(unit, charge){
   } else {
     expectedMileage = miles * unit.per_mile_rate;
   }
-  const expectedEnv = unit.environmental_fee || 0;
-  const expectedSubtotal = expectedBase + expectedMileage + expectedEnv;
+  // Fees is a per-week amount on the unit (e.g. Penske's flat env fee, or an
+  // IdealLease unit's daily fees totaled for a 5-day week) — scale it by the
+  // billing period same as the base rate, so a 4-week entry expects 4 weeks of fees.
+  const expectedEnv = (unit.environmental_fee || 0) * billingWeeks;
+  // Optional per-charge override for one-off daily fees — defaults to 0 so normal
+  // entries (which already get their fees from the unit above) are unaffected.
+  const expectedDailyFees = (Number(charge.daily_fee_rate)||0) * (Number(charge.fee_days)||0);
+  const expectedSubtotal = expectedBase + expectedMileage + expectedEnv + expectedDailyFees;
   const actualSubtotal = (Number(charge.actual_base_charge)||0) + (Number(charge.actual_mileage_charge)||0) +
                           (Number(charge.actual_environmental_fee)||0) + (Number(charge.actual_other_fees)||0);
   const diff = actualSubtotal - expectedSubtotal;
-  return { expectedBase, expectedMileage, expectedEnv, expectedSubtotal, actualSubtotal, diff, flagged: Math.abs(diff) > 1 };
+  return { expectedBase, expectedMileage, expectedEnv, expectedDailyFees, expectedSubtotal, actualSubtotal, diff, flagged: Math.abs(diff) > 1 };
 }
 
 // ---------- UNITS ----------
-$('showAddUnit').addEventListener('click', ()=>{
-  $('addUnitCard').style.display = $('addUnitCard').style.display==='none' ? 'block' : 'none';
-});
+function openUnitModal(unit){
+  $('unitForm').reset();
+  $('uEditId').value = unit ? unit.id : '';
+  $('unitModalTitle').textContent = unit ? `Edit unit ${unit.unit_number}` : 'Add unit';
+  $('unitModalSubtitle').textContent = unit ? `${typeLabel(unit.unit_type)} · ${shortVendor(unit.vendor) || 'No vendor set'}` : 'Enter the unit\'s details below.';
+  if(unit){
+    $('uNumber').value = unit.unit_number || '';
+    $('uStatus').value = unit.status || 'active';
+    $('uType').value = unit.unit_type || 'refrigerated_trailer';
+    $('uVendor').value = unit.vendor || '';
+    $('uYearMakeModel').value = unit.year_make_model || '';
+    $('uVin').value = unit.vin || '';
+    $('uPlateState').value = unit.plate_state || '';
+    $('uLocation').value = unit.location || '';
+    $('uLicenseExp').value = unit.license_exp_date || '';
+    $('uDesc').value = unit.description || '';
+    $('uBaseRate').value = unit.weekly_base_rate ?? '';
+    $('uIncludedMiles').value = unit.included_miles ?? '';
+    $('uPerMile').value = unit.per_mile_rate ?? 0.04;
+    $('uEnvFee').value = unit.environmental_fee ?? 35.00;
+    $('uPmDue').value = unit.next_pm_due_date || '';
+  }
+  $('unitModalOverlay').classList.add('open');
+}
+function closeUnitModal(){
+  $('unitModalOverlay').classList.remove('open');
+}
+$('showAddUnit').addEventListener('click', ()=> openUnitModal(null));
+$('unitModalClose').addEventListener('click', closeUnitModal);
+$('unitModalCancel').addEventListener('click', closeUnitModal);
+$('unitModalOverlay').addEventListener('click', (e)=>{ if(e.target.id === 'unitModalOverlay') closeUnitModal(); });
 
 $('unitForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
+  const editId = $('uEditId').value;
   const payload = {
     unit_number: $('uNumber').value.trim(),
+    status: $('uStatus').value,
     unit_type: $('uType').value,
+    vendor: $('uVendor').value || null,
+    year_make_model: $('uYearMakeModel').value.trim() || null,
+    vin: $('uVin').value.trim() || null,
+    plate_state: $('uPlateState').value.trim() || null,
+    location: $('uLocation').value.trim() || null,
+    license_exp_date: $('uLicenseExp').value || null,
     description: $('uDesc').value.trim(),
     weekly_base_rate: Number($('uBaseRate').value)||0,
     included_miles: $('uIncludedMiles').value === '' ? null : Number($('uIncludedMiles').value),
     per_mile_rate: Number($('uPerMile').value)||0,
-    environmental_fee: Number($('uEnvFee').value)||0
+    environmental_fee: Number($('uEnvFee').value)||0,
+    next_pm_due_date: $('uPmDue').value || null
   };
-  const { error } = await sb.from('equipment_units').insert(payload);
+  const submitBtn = $('unitForm').querySelector('button[type=submit]');
+  submitBtn.disabled = true; submitBtn.textContent = 'Saving...';
+  const { error } = editId
+    ? await sb.from('equipment_units').update(payload).eq('id', editId)
+    : await sb.from('equipment_units').insert(payload);
+  submitBtn.disabled = false; submitBtn.textContent = 'Save Unit';
   if(error){ alert('Error saving unit: ' + error.message); return; }
   $('unitForm').reset();
-  $('addUnitCard').style.display='none';
+  closeUnitModal();
   await loadUnits();
   renderUnitsTable();
   renderUnitSelect();
+  renderPmDueWidget();
+});
+
+function typeLabel(t){
+  if(!t) return '—';
+  return t.replace(/_/g,' ').replace(/\b\w/g, c=>c.toUpperCase());
+}
+
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const today = new Date(todayISO() + 'T00:00:00');
+  const d = new Date(dateStr + 'T00:00:00');
+  return Math.round((d - today) / 86400000);
+}
+
+function pmDueCellHtml(dateStr){
+  if(!dateStr) return '—';
+  const days = daysUntil(dateStr);
+  let color = 'var(--ink)';
+  if(days < 0) color = '#b5341c';
+  else if(days <= 14) color = '#b5341c';
+  return `<span style="color:${color};font-weight:${days<=14?'700':'400'};">${dateStr}${days<0?` (${Math.abs(days)}d overdue)`:days<=14?` (${days}d)`:''}</span>`;
+}
+
+const UNIT_TYPES = ['refrigerated_trailer','dry_van_trailer','day_cab_truck','sleeper_truck'];
+const UNIT_VENDORS = ['Penske','Boxwheel','IdealLease'];
+const TRUCK_TYPES = ['day_cab_truck','sleeper_truck'];
+const TRAILER_TYPES = ['refrigerated_trailer','dry_van_trailer'];
+let UNIT_SUBTAB = 'trucks';
+const UNIT_STATUSES = [
+  { value:'active', label:'Active', pill:'pill-ok' },
+  { value:'in_service', label:'In Service', pill:'pill-info' },
+  { value:'for_pm', label:'For PM', pill:'pill-warn' },
+  { value:'out_of_service', label:'Out of Service', pill:'pill-bad' }
+];
+function statusPillHtml(status){
+  const s = UNIT_STATUSES.find(x=>x.value===status) || UNIT_STATUSES[0];
+  return `<span class="pill ${s.pill}">${s.label}</span>`;
+}
+
+document.querySelectorAll('#unitSubtabs [data-unitsubtab]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    UNIT_SUBTAB = btn.dataset.unitsubtab;
+    document.querySelectorAll('#unitSubtabs [data-unitsubtab]').forEach(b=>b.classList.toggle('active', b===btn));
+    renderUnitsTable();
+  });
 });
 
 function renderUnitsTable(){
+  $('uLocationList').innerHTML = knownLocations().map(l=>`<option value="${l}">`).join('');
+  $('unitSubtabCountTrucks').textContent = UNITS.filter(u=>TRUCK_TYPES.includes(u.unit_type)).length;
+  $('unitSubtabCountTrailers').textContent = UNITS.filter(u=>TRAILER_TYPES.includes(u.unit_type)).length;
+  const activeTypes = UNIT_SUBTAB === 'trucks' ? TRUCK_TYPES : TRAILER_TYPES;
+  const rows = UNITS.filter(u=>activeTypes.includes(u.unit_type));
   const tbody = document.querySelector('#unitsTable tbody');
   tbody.innerHTML = '';
-  $('unitsEmpty').style.display = UNITS.length ? 'none' : 'block';
-  UNITS.forEach(u=>{
+  $('unitsEmpty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(u=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><strong>${u.unit_number}</strong></td><td>${u.unit_type}</td><td>${u.description||''}</td>
-      <td>${fmt(u.weekly_base_rate)}</td><td>${u.included_miles ?? '—'}</td><td>$${Number(u.per_mile_rate).toFixed(4)}</td><td>${fmt(u.environmental_fee)}</td>`;
+    tr.innerHTML = `<td>${statusPillHtml(u.status)}</td><td><strong>${u.unit_number}</strong></td><td>${typeLabel(u.unit_type)}</td><td>${shortVendor(u.vendor)||'—'}</td>
+      <td>${u.year_make_model||'—'}</td><td>${u.vin||'—'}</td><td>${u.plate_state||'—'}</td><td>${u.location||'—'}</td><td>${u.license_exp_date||'—'}</td><td>${u.description||'—'}</td>
+      <td>${fmt(u.weekly_base_rate)}</td><td>${u.included_miles ?? '—'}</td><td>$${Number(u.per_mile_rate).toFixed(4)}</td><td>${fmt(u.environmental_fee)}</td>
+      <td>${pmDueCellHtml(u.next_pm_due_date)}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-sm btn-outline" data-uedit="${u.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Edit</button>
+        <button class="btn btn-sm btn-outline" data-udel="${u.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Delete</button>
+      </td>`;
     tbody.appendChild(tr);
   });
+
+  tbody.querySelectorAll('[data-uedit]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const unit = UNITS.find(u=>u.id === btn.dataset.uedit);
+      if(unit) openUnitModal(unit);
+    });
+  });
+  tbody.querySelectorAll('[data-udel]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Delete this unit? This does not delete its transaction/maintenance history.')) return;
+      const { error } = await sb.from('equipment_units').delete().eq('id', btn.dataset.udel);
+      if(error){ alert('Error deleting: ' + error.message); return; }
+      await loadUnits();
+      renderUnitsTable();
+      renderUnitSelect();
+      renderPmDueWidget();
+    });
+  });
 }
+
+function renderPmDueWidget(){
+  const upcoming = UNITS
+    .filter(u=>u.next_pm_due_date)
+    .map(u=>({ ...u, days: daysUntil(u.next_pm_due_date) }))
+    .filter(u=>u.days <= 14)
+    .sort((a,b)=>a.days - b.days);
+
+  const card = $('pmDueCard');
+  if(!upcoming.length){ card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const overdueCount = upcoming.filter(u=>u.days < 0).length;
+  $('pmDueBadge').textContent = upcoming.length;
+  $('pmDueBadge').className = 'pill ' + (overdueCount ? 'pill-bad' : 'pill-bad');
+
+  const list = $('pmDueList');
+  list.innerHTML = `<table><thead><tr><th>Unit #</th><th>Type</th><th>Description</th><th>PM Due Date</th><th>Status</th></tr></thead><tbody>
+    ${upcoming.map(u=>`<tr>
+      <td><strong>${u.unit_number}</strong></td><td>${typeLabel(u.unit_type)}</td><td>${u.description||''}</td>
+      <td>${u.next_pm_due_date}</td>
+      <td><span class="pill pill-bad">${u.days<0?`${Math.abs(u.days)}d overdue`:u.days===0?'Due today':`Due in ${u.days}d`}</span></td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
+$('pmDueToggle').addEventListener('click', ()=>{
+  const list = $('pmDueList');
+  const open = list.style.display !== 'none';
+  list.style.display = open ? 'none' : 'block';
+  $('pmDueChevron').textContent = open ? '▾' : '▴';
+});
 
 function renderUnitSelect(){
   const sel = $('cUnit');
@@ -517,7 +971,7 @@ function renderUnitSelect(){
   UNITS.forEach(u=>{
     const opt = document.createElement('option');
     opt.value = u.id;
-    opt.textContent = `${u.unit_number} — ${u.description || u.unit_type}`;
+    opt.textContent = u.vendor ? `${u.unit_number} ${shortVendor(u.vendor)}` : u.unit_number;
     sel.appendChild(opt);
   });
 }
@@ -533,15 +987,18 @@ function livePreview(){
     actual_base_charge: $('cBase').value,
     actual_mileage_charge: $('cMileageCharge').value,
     actual_environmental_fee: $('cEnvFee').value,
-    actual_other_fees: $('cOtherFees').value
+    actual_other_fees: $('cOtherFees').value,
+    billing_weeks: $('cBillingWeeks').value,
+    daily_fee_rate: $('cDailyFeeRate').value,
+    fee_days: $('cFeeDays').value
   };
   const r = computeExpected(unit, charge);
   preview.style.display = 'block';
-  preview.innerHTML = `<strong>Expected subtotal: ${fmt(r.expectedSubtotal)}</strong> (base ${fmt(r.expectedBase)} + mileage ${fmt(r.expectedMileage)} + env fee ${fmt(r.expectedEnv)})
+  preview.innerHTML = `<strong>Expected subtotal: ${fmt(r.expectedSubtotal)}</strong> (base ${fmt(r.expectedBase)} + mileage ${fmt(r.expectedMileage)} + fees ${fmt(r.expectedEnv)} + daily fees ${fmt(r.expectedDailyFees)})
     &nbsp;|&nbsp; Actual subtotal: ${fmt(r.actualSubtotal)}
     &nbsp;|&nbsp; <span style="color:${r.flagged?'#b5341c':'#1a8a5a'};font-weight:700;">Difference: ${r.diff>=0?'+':''}${fmt(r.diff)} ${r.flagged?'⚠ FLAGGED':'✓ OK'}</span>`;
 }
-['cUnit','cMaintDays','cMiles','cBase','cMileageCharge','cEnvFee','cOtherFees'].forEach(id=>{
+['cUnit','cMaintDays','cMiles','cBase','cMileageCharge','cEnvFee','cOtherFees','cBillingWeeks','cDailyFeeRate','cFeeDays'].forEach(id=>{
   $(id).addEventListener('input', livePreview);
   $(id).addEventListener('change', livePreview);
 });
@@ -563,6 +1020,9 @@ $('chargeForm').addEventListener('submit', async (e)=>{
     maintenance_days: Number($('cMaintDays').value)||0,
     maintenance_notes: $('cMaintNotes').value.trim(),
     notes: $('cNotes').value.trim(),
+    billing_weeks: Number($('cBillingWeeks').value)||1,
+    daily_fee_rate: Number($('cDailyFeeRate').value)||0,
+    fee_days: Number($('cFeeDays').value)||0,
     created_by: user ? user.id : null
   };
   if(!payload.unit_id){ alert('Please select a unit.'); return; }
@@ -629,6 +1089,8 @@ function renderReports(){
 // ---------- STATS ----------
 function renderStats(){
   const totalUnits = UNITS.length;
+  const truckCount = UNITS.filter(u=>TRUCK_TYPES.includes(u.unit_type)).length;
+  const trailerCount = UNITS.filter(u=>TRAILER_TYPES.includes(u.unit_type)).length;
   const totalCharged = CHARGES.reduce((s,c)=>s+(Number(c.actual_total_charged)||0),0);
   let flaggedCount = 0, totalDiscrepancy = 0;
   CHARGES.forEach(c=>{
@@ -637,7 +1099,7 @@ function renderStats(){
     if(r){ if(r.flagged) flaggedCount++; totalDiscrepancy += r.diff; }
   });
   $('statGrid').innerHTML = `
-    <div class="stat-card"><div class="num">${totalUnits}</div><div class="label">Units Tracked</div></div>
+    <div class="stat-card"><div class="num">${totalUnits}</div><div class="label">Units Tracked</div><div class="sublabel">${truckCount} trucks &nbsp;|&nbsp; ${trailerCount} trailers</div></div>
     <div class="stat-card"><div class="num">${fmt(totalCharged)}</div><div class="label">Total Charged (all time)</div></div>
     <div class="stat-card"><div class="num" style="color:${flaggedCount?'#b5341c':'#1a8a5a'};">${flaggedCount}</div><div class="label">Flagged Weeks</div></div>
     <div class="stat-card"><div class="num" style="color:${totalDiscrepancy>1?'#b5341c':'#1a8a5a'};">${totalDiscrepancy>=0?'+':''}${fmt(totalDiscrepancy)}</div><div class="label">Net Discrepancy</div></div>
@@ -763,8 +1225,16 @@ function renderBatchTable(){
       <td><input type="number" step="0.01" data-idx="${idx}" data-field="total" value="${row.total||0}" style="width:90px;"></td>
       <td><input type="number" step="0.5" data-idx="${idx}" data-field="maintenance_days" value="${row.maintenance_days||0}" style="width:70px;"></td>
       <td>${row.error ? `<span class="pill pill-bad">${row.error}</span>` : '<span class="pill pill-ok">Ready</span>'}</td>
+      <td><button class="btn btn-sm btn-outline" data-remove="${idx}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Remove</button></td>
     `;
     tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      BATCH_ROWS.splice(Number(btn.dataset.remove), 1);
+      renderBatchTable();
+    });
   });
 
   tbody.querySelectorAll('input, select').forEach(el=>{
@@ -818,10 +1288,11 @@ $('saveBatchBtn').addEventListener('click', async ()=>{
 
 // ---------- TRANSACTION LOG ----------
 const todayISO = () => new Date().toISOString().slice(0,10);
-$('txDate').value = todayISO();
+
+const STANDARD_LOCATIONS = ['Penske Fontana', 'Penske Las Vegas', 'Penske Utah - Salt Lake City', 'Boxwheel', 'IdealLease'];
 
 function knownLocations(){
-  const set = new Set(TRANSACTIONS.map(t=>t.unit_location).filter(Boolean));
+  const set = new Set([...STANDARD_LOCATIONS, ...TRANSACTIONS.map(t=>t.unit_location).filter(Boolean)]);
   return [...set].sort();
 }
 function knownCards(){
@@ -829,46 +1300,38 @@ function knownCards(){
   return [...set].sort();
 }
 
-$('txForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const { data:{ user } } = await sb.auth.getUser();
-  const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === $('txUnit').value.trim().toLowerCase());
-  const payload = {
-    unit_number: $('txUnit').value.trim(),
-    unit_type: matchedUnit ? matchedUnit.unit_type : null,
-    unit_location: $('txLocation').value.trim() || null,
-    payment_date: $('txDate').value,
-    amount: Number($('txAmount').value)||0,
-    notes: $('txNotes').value.trim() || null,
-    auth_hold_start: $('txHoldStart').value || null,
-    auth_hold_end: $('txHoldEnd').value || null,
-    auth_hold_amount: $('txHoldAmount').value === '' ? null : Number($('txHoldAmount').value),
-    card_last4: $('txCardLast4').value.trim() || null,
-    card_type: $('txCardType').value || null,
-    created_by: user ? user.id : null
-  };
-  if(!payload.unit_number){ alert('Enter a unit number.'); return; }
-  const btn = $('txForm').querySelector('button[type=submit]');
-  btn.disabled = true;
-  const { error } = await sb.from('equipment_transactions').insert(payload);
-  btn.disabled = false;
-  if(error){ alert('Error saving transaction: ' + error.message); return; }
-
-  // Fast re-entry: keep location/card fields (they tend to repeat during a call),
-  // clear unit/amount/notes/hold fields, refocus unit for the next one.
-  $('txUnit').value = '';
-  $('txAmount').value = '0';
-  $('txNotes').value = '';
-  $('txHoldStart').value = '';
-  $('txHoldEnd').value = '';
-  $('txHoldAmount').value = '';
-  $('txDate').value = todayISO();
-  $('txUnit').focus();
-
-  await loadTransactions();
-  renderTransactions();
-  renderTxRollup();
-});
+// Auth holds / rewrites always run Friday-to-Friday, 7 days.
+function friWeekEnd(startISO){
+  const d = new Date(startISO + 'T00:00:00');
+  d.setDate(d.getDate() + 7);
+  return d.toISOString().slice(0,10);
+}
+function fmtUS(iso){
+  const [y,m,d] = iso.split('-');
+  return `${m}/${d}/${y}`;
+}
+// Populate a <select> with upcoming (and a few recent) Friday start dates.
+// asRange=true labels each option as "start – end"; otherwise just the single Friday date.
+function populateFridayOptions(selectEl, asRange){
+  const prev = selectEl.value;
+  selectEl.innerHTML = '<option value="">— select week —</option>';
+  const today = new Date(todayISO() + 'T00:00:00');
+  const dow = today.getDay(); // 0=Sun..6=Sat
+  const diffToFriday = (dow - 5 + 7) % 7;
+  const anchor = new Date(today);
+  anchor.setDate(anchor.getDate() - diffToFriday);
+  for(let i=-2;i<=10;i++){
+    const start = new Date(anchor);
+    start.setDate(start.getDate() + i*7);
+    const startISO = start.toISOString().slice(0,10);
+    const opt = document.createElement('option');
+    opt.value = startISO;
+    opt.textContent = asRange ? `${fmtUS(startISO)} – ${fmtUS(friWeekEnd(startISO))}` : `Week of ${fmtUS(startISO)} (Fri)`;
+    selectEl.appendChild(opt);
+  }
+  if(prev) selectEl.value = prev;
+}
+populateFridayOptions($('txqWeek'), false);
 
 function fmtHoldRange(t){
   if(!t.auth_hold_start && !t.auth_hold_end) return '—';
@@ -879,6 +1342,19 @@ function knownUnitNumbers(){
   const set = new Set(UNITS.map(u=>u.unit_number));
   TRANSACTIONS.forEach(t=>{ if(t.unit_number) set.add(t.unit_number); });
   return [...set].sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}));
+}
+
+function shortVendor(v){
+  if(!v) return '';
+  if(v === 'IdealLease') return 'Ideal';
+  if(v === 'Boxwheel') return 'BoxWheel';
+  return v;
+}
+
+function unitLabel(unitNumber){
+  const u = UNITS.find(x=>x.unit_number === unitNumber);
+  const v = u ? shortVendor(u.vendor) : '';
+  return v ? `${unitNumber} ${v}` : unitNumber;
 }
 
 function lastLocationForUnit(unitNumber){
@@ -893,7 +1369,7 @@ function autofillUnitInfo(unitInputVal, typeFieldId, locationFieldId){
   const typeField = $(typeFieldId);
   const locField = $(locationFieldId);
   if(matchedUnit && !typeField.value){
-    typeField.value = matchedUnit.unit_type + (matchedUnit.description ? ' — ' + matchedUnit.description : '');
+    typeField.value = typeLabel(matchedUnit.unit_type);
   }
   if(!locField.value){
     const loc = lastLocationForUnit(val);
@@ -902,14 +1378,6 @@ function autofillUnitInfo(unitInputVal, typeFieldId, locationFieldId){
 }
 
 $('txqUnit').addEventListener('blur', ()=> autofillUnitInfo($('txqUnit').value, 'txqType', 'txqLocation'));
-$('txUnit').addEventListener('blur', ()=>{
-  if(!$('txLocation').value){
-    const loc = lastLocationForUnit($('txUnit').value.trim());
-    if(loc) $('txLocation').value = loc;
-  }
-});
-
-$('txqWeekDate').value = todayISO();
 
 $('txQuickForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -920,34 +1388,45 @@ $('txQuickForm').addEventListener('submit', async (e)=>{
   const typedType = $('txqType').value.trim();
   const unitType = typedType || (matchedUnit ? matchedUnit.unit_type : null);
   const location = $('txqLocation').value.trim() || null;
-  const weekDate = $('txqWeekDate').value;
+  const weekStart = $('txqWeek').value;
   const dueAmount = $('txqDue').value === '' ? null : Number($('txqDue').value);
   const rewriteAmount = $('txqRewrite').value === '' ? null : Number($('txqRewrite').value);
+  const cardLast4 = $('txqCardLast4').value.trim() || null;
+  const cardType = $('txqCardType').value || null;
   const notes = $('txqNotes').value.trim();
 
+  if(!weekStart){ alert('Select a week.'); return; }
   if(dueAmount === null){ alert("Enter this week's due amount."); return; }
 
   const rows = [{
     unit_number: unitNumber,
     unit_type: unitType,
     unit_location: location,
-    payment_date: weekDate,
+    payment_date: weekStart,
     amount: dueAmount,
     notes: notes ? `Weekly Due — ${notes}` : 'Weekly Due',
+    card_last4: cardLast4,
+    card_type: cardType,
     created_by: user ? user.id : null
   }];
 
   if(rewriteAmount !== null){
-    const d = new Date(weekDate + 'T00:00:00');
-    d.setDate(d.getDate() + 7);
-    const nextWeekDate = d.toISOString().slice(0,10);
+    // Both transactions post the SAME Friday: the due amount settles the week
+    // that's ending, and the rewrite is the pre-auth for the week that starts
+    // that same day (weekStart -> weekStart+7).
+    const holdEnd = friWeekEnd(weekStart);
     rows.push({
       unit_number: unitNumber,
       unit_type: unitType,
       unit_location: location,
-      payment_date: nextWeekDate,
+      payment_date: weekStart,
       amount: rewriteAmount,
-      notes: `Rewrite / Pre-Authorization for week of ${nextWeekDate}` + (notes ? ` — ${notes}` : ''),
+      notes: `Rewrite / Pre-Authorization for week of ${fmtUS(weekStart)}–${fmtUS(holdEnd)}` + (notes ? ` — ${notes}` : ''),
+      auth_hold_start: weekStart,
+      auth_hold_end: holdEnd,
+      auth_hold_amount: rewriteAmount,
+      card_last4: cardLast4,
+      card_type: cardType,
       created_by: user ? user.id : null
     });
   }
@@ -958,14 +1437,13 @@ $('txQuickForm').addEventListener('submit', async (e)=>{
   btn.disabled = false; btn.textContent = 'Save Week';
   if(error){ alert('Error saving: ' + error.message); return; }
 
-  // Fast re-entry for the next unit
+  // Fast re-entry for the next unit — keep card fields, they tend to repeat during a call.
   $('txqUnit').value = '';
   $('txqType').value = '';
   $('txqLocation').value = '';
   $('txqDue').value = '';
   $('txqRewrite').value = '';
   $('txqNotes').value = '';
-  $('txqWeekDate').value = todayISO();
   $('txqUnit').focus();
 
   await loadTransactions();
@@ -973,10 +1451,153 @@ $('txQuickForm').addEventListener('submit', async (e)=>{
   renderTxRollup();
 });
 
+// ---------- PASTE WEEKLY INVOICE LIST ----------
+let WL_ROWS = [];
+
+$('wlDate').value = todayISO();
+
+function classifyInvoicePrefix(invoiceNum){
+  const p = invoiceNum.toUpperCase();
+  if(p.startsWith('RO')) return 'maintenance';   // repair/service invoice
+  return 'transaction';                          // rental, toll, or anything else
+}
+
+$('wlParseBtn').addEventListener('click', ()=>{
+  const raw = $('wlPaste').value;
+  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+  WL_ROWS = [];
+  lines.forEach(line=>{
+    const m = line.match(/([A-Za-z]{2,4}\d{3,7})\D+([\d,]+\.\d{2})/);
+    if(!m) return; // skip lines that don't look like "INVOICE# $amount"
+    const invoiceNum = m[1];
+    const amount = parseFloat(m[2].replace(/,/g,''));
+    WL_ROWS.push({
+      invoice_number: invoiceNum,
+      amount,
+      unit_number: '',
+      route: classifyInvoicePrefix(invoiceNum),
+      notes: ''
+    });
+  });
+  if(!WL_ROWS.length){
+    alert('Could not find any "INVOICE# $amount" lines. Check the format and try again.');
+    return;
+  }
+  renderWlTable();
+});
+
+function renderWlTable(){
+  const card = $('wlReviewCard');
+  const tbody = document.querySelector('#wlTable tbody');
+  tbody.innerHTML = '';
+  card.style.display = WL_ROWS.length ? 'block' : 'none';
+  $('wlCount').textContent = WL_ROWS.length;
+  $('wlTotal').textContent = fmt(WL_ROWS.reduce((s,r)=>s+(Number(r.amount)||0),0));
+
+  WL_ROWS.forEach((row, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${row.invoice_number}</strong></td>
+      <td><input type="number" step="0.01" data-idx="${idx}" data-field="amount" value="${row.amount}" style="width:90px;"></td>
+      <td><input type="text" data-idx="${idx}" data-field="unit_number" value="${row.unit_number}" placeholder="fill in later" style="width:100px;"></td>
+      <td>
+        <select data-idx="${idx}" data-field="route">
+          <option value="transaction" ${row.route==='transaction'?'selected':''}>Transaction Log</option>
+          <option value="maintenance" ${row.route==='maintenance'?'selected':''}>Maintenance</option>
+        </select>
+      </td>
+      <td><input type="text" data-idx="${idx}" data-field="notes" value="${row.notes}" placeholder="optional" style="width:140px;"></td>
+      <td><button class="btn btn-sm btn-outline" data-wlremove="${idx}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Remove</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-wlremove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      WL_ROWS.splice(Number(btn.dataset.wlremove), 1);
+      renderWlTable();
+    });
+  });
+  tbody.querySelectorAll('input, select').forEach(el=>{
+    el.addEventListener('change', (e)=>{
+      const idx = Number(e.target.dataset.idx);
+      const field = e.target.dataset.field;
+      let val = e.target.value;
+      if(field === 'amount') val = Number(val)||0;
+      WL_ROWS[idx][field] = val;
+      if(field==='amount') renderWlTable();
+    });
+  });
+}
+
+$('wlSaveBtn').addEventListener('click', async ()=>{
+  if(!WL_ROWS.length) return;
+  const { data:{ user } } = await sb.auth.getUser();
+  const vendor = $('wlVendor').value.trim() || null;
+  const date = $('wlDate').value || todayISO();
+
+  const txRows = [];
+  const maintRows = [];
+  WL_ROWS.forEach(r=>{
+    // Unit # isn't in these emails — fall back to the invoice # as a placeholder so the
+    // NOT NULL constraint is satisfied, and flag it clearly so it's easy to find and fix later.
+    const unitPlaceholder = r.unit_number.trim() || `NEEDS-UNIT-${r.invoice_number}`;
+    const noteText = (r.notes ? r.notes + ' — ' : '') + (r.unit_number.trim() ? '' : '⚠ unit # not identified, see invoice ') + r.invoice_number;
+    if(r.route === 'maintenance'){
+      maintRows.push({
+        unit_number: unitPlaceholder,
+        service_date: date,
+        service_type: 'Repair',
+        vendor,
+        description: noteText,
+        amount: r.amount,
+        days_down: 0,
+        invoice_number: r.invoice_number,
+        created_by: user ? user.id : null
+      });
+    } else {
+      txRows.push({
+        unit_number: unitPlaceholder,
+        unit_location: vendor,
+        payment_date: date,
+        amount: r.amount,
+        notes: noteText,
+        created_by: user ? user.id : null
+      });
+    }
+  });
+
+  $('wlSaveBtn').disabled = true; $('wlSaveBtn').textContent = 'Saving...';
+  if(txRows.length){
+    const { error } = await sb.from('equipment_transactions').insert(txRows);
+    if(error){ $('wlSaveBtn').disabled = false; $('wlSaveBtn').textContent = 'Save All'; alert('Error saving transactions: ' + error.message); return; }
+  }
+  if(maintRows.length){
+    const { error } = await sb.from('equipment_maintenance').insert(maintRows);
+    if(error){ $('wlSaveBtn').disabled = false; $('wlSaveBtn').textContent = 'Save All'; alert('Error saving maintenance records: ' + error.message); return; }
+  }
+  $('wlSaveBtn').disabled = false; $('wlSaveBtn').textContent = 'Save All';
+  alert(`Saved ${WL_ROWS.length} record(s). Rows with no unit # are tagged "NEEDS-UNIT-<invoice#>" — search for that to find and fix them once you know the unit.`);
+
+  WL_ROWS = [];
+  renderWlTable();
+  $('wlPaste').value = '';
+  $('wlDate').value = todayISO();
+
+  await loadTransactions();
+  await loadMaintenance();
+  renderTransactions();
+  renderTxRollup();
+  renderMaintenance();
+  renderMaintRollup();
+});
+
+let EDIT_TX_ID = null;
+
 function renderTransactions(){
   // Keep the location/unit datalists and card filter fresh
   $('txLocationList').innerHTML = knownLocations().map(l=>`<option value="${l}">`).join('');
-  $('txqUnitList').innerHTML = knownUnitNumbers().map(u=>`<option value="${u}">`).join('');
+  $('txqUnitList').innerHTML = knownUnitNumbers().map(u=>`<option value="${u}">${unitLabel(u)}</option>`).join('');
   const cardFilter = $('txFilterCard');
   const prevCardVal = cardFilter.value;
   cardFilter.innerHTML = '<option value="">All cards</option>' + knownCards().map(c=>`<option value="${c}">${c}</option>`).join('');
@@ -995,12 +1616,70 @@ function renderTransactions(){
   $('txEmpty').style.display = rows.length ? 'none' : 'block';
   rows.forEach(t=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${t.payment_date}</td><td><strong>${t.unit_number}</strong></td><td>${t.unit_type||'—'}</td><td>${t.unit_location||'—'}</td>
-      <td>${fmt(t.amount)}</td><td>${t.notes||'—'}</td>
-      <td>${fmtHoldRange(t)}</td><td>${t.auth_hold_amount!=null?fmt(t.auth_hold_amount):'—'}</td>
-      <td>${t.card_type?`${t.card_type} `:''}${t.card_last4?'••'+t.card_last4:''}${!t.card_type&&!t.card_last4?'—':''}</td>
-      <td><button class="btn btn-sm btn-outline" data-del="${t.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Delete</button></td>`;
+    if(t.id === EDIT_TX_ID){
+      const cardTypes = ['','VISA','AMEX','MASTERCARD','DISCOVER'];
+      tr.innerHTML = `
+        <td><input type="date" data-f="payment_date" value="${t.payment_date||''}" style="width:130px;"></td>
+        <td><input type="text" data-f="unit_number" value="${t.unit_number||''}" style="width:80px;"></td>
+        <td><input type="text" data-f="unit_type" value="${t.unit_type||''}" style="width:90px;"></td>
+        <td><input type="text" data-f="unit_location" value="${t.unit_location||''}" list="txLocationList" style="width:120px;"></td>
+        <td><input type="number" step="0.01" data-f="amount" value="${t.amount||0}" style="width:90px;"></td>
+        <td><input type="text" data-f="notes" value="${(t.notes||'').replace(/"/g,'&quot;')}" style="width:150px;"></td>
+        <td><input type="date" data-f="auth_hold_start" value="${t.auth_hold_start||''}" style="width:130px;" title="Auth hold start (end auto = +7 days)"></td>
+        <td><input type="number" step="0.01" data-f="auth_hold_amount" value="${t.auth_hold_amount??''}" style="width:90px;"></td>
+        <td>
+          <input type="text" data-f="card_last4" value="${t.card_last4||''}" maxlength="4" style="width:55px;">
+          <select data-f="card_type" style="width:80px;">${cardTypes.map(c=>`<option ${t.card_type===c?'selected':''}>${c}</option>`).join('')}</select>
+        </td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm" data-save="${t.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Save</button>
+          <button class="btn btn-sm btn-outline" data-cancel style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Cancel</button>
+        </td>`;
+    } else {
+      tr.innerHTML = `<td>${t.payment_date}</td><td><strong>${t.unit_number}</strong></td><td>${t.unit_type||'—'}</td><td>${t.unit_location||'—'}</td>
+        <td>${fmt(t.amount)}</td><td>${t.notes||'—'}</td>
+        <td>${fmtHoldRange(t)}</td><td>${t.auth_hold_amount!=null?fmt(t.auth_hold_amount):'—'}</td>
+        <td>${t.card_type?`${t.card_type} `:''}${t.card_last4?'••'+t.card_last4:''}${!t.card_type&&!t.card_last4?'—':''}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm btn-outline" data-edit="${t.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Edit</button>
+          <button class="btn btn-sm btn-outline" data-del="${t.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Delete</button>
+        </td>`;
+    }
     tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-edit]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ EDIT_TX_ID = btn.dataset.edit; renderTransactions(); });
+  });
+  tbody.querySelectorAll('[data-cancel]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ EDIT_TX_ID = null; renderTransactions(); });
+  });
+  tbody.querySelectorAll('[data-save]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tr = btn.closest('tr');
+      const get = (f) => tr.querySelector(`[data-f="${f}"]`).value;
+      const holdStart = get('auth_hold_start') || null;
+      const payload = {
+        payment_date: get('payment_date'),
+        unit_number: get('unit_number').trim(),
+        unit_type: get('unit_type').trim() || null,
+        unit_location: get('unit_location').trim() || null,
+        amount: Number(get('amount'))||0,
+        notes: get('notes').trim() || null,
+        auth_hold_start: holdStart,
+        auth_hold_end: holdStart ? friWeekEnd(holdStart) : null,
+        auth_hold_amount: get('auth_hold_amount') === '' ? null : Number(get('auth_hold_amount')),
+        card_last4: get('card_last4').trim() || null,
+        card_type: get('card_type') || null
+      };
+      btn.disabled = true; btn.textContent = 'Saving...';
+      const { error } = await sb.from('equipment_transactions').update(payload).eq('id', btn.dataset.save);
+      if(error){ btn.disabled = false; btn.textContent = 'Save'; alert('Error saving: ' + error.message); return; }
+      EDIT_TX_ID = null;
+      await loadTransactions();
+      renderTransactions();
+      renderTxRollup();
+    });
   });
   tbody.querySelectorAll('[data-del]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
@@ -1037,6 +1716,781 @@ function renderTxRollup(){
 
 $('txFilterUnit').addEventListener('input', renderTransactions);
 $('txFilterCard').addEventListener('change', renderTransactions);
+
+// ---------- BULK UNIT IMPORT ----------
+let UNIT_BATCH_ROWS = [];
+
+function normalizeHeader(h){
+  return String(h||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+function pick(rowObj, ...aliases){
+  const keys = Object.keys(rowObj);
+  for(const alias of aliases){
+    const target = normalizeHeader(alias);
+    const key = keys.find(k=>normalizeHeader(k) === target);
+    if(key !== undefined) return rowObj[key];
+  }
+  return '';
+}
+function normalizeType(raw){
+  const t = String(raw||'').toLowerCase().trim();
+  if(t.includes('reefer') || t.includes('refrigerat')) return 'refrigerated_trailer';
+  if(t.includes('dry van') || t.includes('dryvan') || (t.includes('van') && t.includes('trailer'))) return 'dry_van_trailer';
+  if(t.includes('sleeper')) return 'sleeper_truck';
+  if(t.includes('day cab') || t.includes('daycab')) return 'day_cab_truck';
+  if(t.includes('truck')) return 'day_cab_truck';
+  if(t.includes('trailer')) return 'dry_van_trailer';
+  return t.replace(/\s+/g,'_') || 'dry_van_trailer';
+}
+function excelDateToISO(val){
+  if(!val) return '';
+  if(typeof val === 'number'){
+    // Excel serial date
+    const d = XLSX.SSF.parse_date_code(val);
+    if(!d) return '';
+    return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  const s = String(val).trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return '';
+}
+
+$('unitUpload').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  $('unitUploadStatus').textContent = 'Reading file...';
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:'array', cellDates:false });
+    // Use the "Units" sheet if present (our template), else the first sheet.
+    const sheetName = wb.SheetNames.includes('Units') ? 'Units' : wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+
+    // Find the real header row by scanning for a cell that says "Unit Number" —
+    // our template has a title/instructions row above it, plain CSVs won't.
+    const grid = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+    let headerRowIdx = grid.findIndex(row => row.some(cell => normalizeHeader(cell) === normalizeHeader('Unit Number')));
+    if(headerRowIdx === -1) headerRowIdx = 0;
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval:'', range: headerRowIdx });
+
+    UNIT_BATCH_ROWS = rows
+      .map(r=>{
+        const unit_number = String(pick(r,'Unit Number','Unit #','Unit')).trim();
+        return {
+          unit_number,
+          unit_type: normalizeType(pick(r,'Type','Unit Type')),
+          description: String(pick(r,'Description')).trim(),
+          weekly_base_rate: Number(pick(r,'Weekly Base Rate','Weekly Rate'))||0,
+          included_miles: (()=>{ const v = pick(r,'Included Miles'); return v===''||v===null||v===undefined ? null : Number(v); })(),
+          per_mile_rate: Number(pick(r,'Per-Mile Rate','Per Mile Rate'))||0,
+          environmental_fee: Number(pick(r,'Fees','Environmental Fee','Env Fee'))||0,
+          next_pm_due_date: excelDateToISO(pick(r,'Next PM Due Date','PM Due Date','Next PM Due')) || null,
+          error: ''
+        };
+      })
+      .filter(r=>r.unit_number && r.unit_number.toUpperCase() !== 'EXAMPLE-000'); // drop blank rows and the template's example row
+
+    $('unitUploadStatus').textContent = `Parsed ${UNIT_BATCH_ROWS.length} row(s). Review below before saving.`;
+    renderUnitBatchTable();
+  }catch(err){
+    $('unitUploadStatus').textContent = 'Failed to read file: ' + err.message;
+  }
+});
+
+function renderUnitBatchTable(){
+  const card = $('unitBatchCard');
+  const tbody = document.querySelector('#unitBatchTable tbody');
+  tbody.innerHTML = '';
+  $('unitBatchCount').textContent = UNIT_BATCH_ROWS.length;
+  card.style.display = UNIT_BATCH_ROWS.length ? 'block' : 'none';
+
+  UNIT_BATCH_ROWS.forEach((row, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" data-idx="${idx}" data-field="unit_number" value="${row.unit_number}" style="width:100px;"></td>
+      <td>
+        <select data-idx="${idx}" data-field="unit_type">
+          <option value="refrigerated_trailer" ${row.unit_type==='refrigerated_trailer'?'selected':''}>Refrigerated Trailer</option>
+          <option value="dry_van_trailer" ${row.unit_type==='dry_van_trailer'?'selected':''}>Dry Van Trailer</option>
+          <option value="day_cab_truck" ${row.unit_type==='day_cab_truck'?'selected':''}>Day Cab Truck</option>
+          <option value="sleeper_truck" ${row.unit_type==='sleeper_truck'?'selected':''}>Sleeper Truck</option>
+        </select>
+      </td>
+      <td><input type="text" data-idx="${idx}" data-field="description" value="${row.description}" style="width:160px;"></td>
+      <td><input type="number" step="0.01" data-idx="${idx}" data-field="weekly_base_rate" value="${row.weekly_base_rate}" style="width:90px;"></td>
+      <td><input type="number" step="1" data-idx="${idx}" data-field="included_miles" value="${row.included_miles ?? ''}" style="width:90px;"></td>
+      <td><input type="number" step="0.0001" data-idx="${idx}" data-field="per_mile_rate" value="${row.per_mile_rate}" style="width:80px;"></td>
+      <td><input type="number" step="0.01" data-idx="${idx}" data-field="environmental_fee" value="${row.environmental_fee}" style="width:80px;"></td>
+      <td><input type="date" data-idx="${idx}" data-field="next_pm_due_date" value="${row.next_pm_due_date||''}" style="width:135px;"></td>
+      <td>${row.error ? `<span class="pill pill-bad">${row.error}</span>` : '<span class="pill pill-ok">Ready</span>'}</td>
+      <td><button class="btn btn-sm btn-outline" data-remove="${idx}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Remove</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      UNIT_BATCH_ROWS.splice(Number(btn.dataset.remove), 1);
+      renderUnitBatchTable();
+    });
+  });
+
+  tbody.querySelectorAll('input, select').forEach(el=>{
+    el.addEventListener('change', (e)=>{
+      const idx = Number(e.target.dataset.idx);
+      const field = e.target.dataset.field;
+      let val = e.target.value;
+      if(['weekly_base_rate','included_miles','per_mile_rate','environmental_fee'].includes(field)){
+        val = val === '' ? (field==='included_miles' ? null : 0) : Number(val);
+      }
+      UNIT_BATCH_ROWS[idx][field] = val;
+      UNIT_BATCH_ROWS[idx].error = UNIT_BATCH_ROWS[idx].unit_number ? '' : 'Missing unit number';
+      if(field==='unit_number' || field==='error') renderUnitBatchTable();
+    });
+  });
+}
+
+$('saveUnitBatchBtn').addEventListener('click', async ()=>{
+  const validRows = UNIT_BATCH_ROWS.filter(r=>r.unit_number && !r.error);
+  if(!validRows.length){ alert('No valid rows to save — each row needs a unit number.'); return; }
+  const payloads = validRows.map(r=>({
+    unit_number: r.unit_number,
+    unit_type: r.unit_type,
+    description: r.description,
+    weekly_base_rate: r.weekly_base_rate,
+    included_miles: r.included_miles,
+    per_mile_rate: r.per_mile_rate,
+    environmental_fee: r.environmental_fee,
+    next_pm_due_date: r.next_pm_due_date || null
+  }));
+  $('saveUnitBatchBtn').disabled = true;
+  $('saveUnitBatchBtn').textContent = 'Saving...';
+  // Upsert on unit_number: updates existing units, inserts new ones.
+  const { error } = await sb.from('equipment_units').upsert(payloads, { onConflict:'unit_number' });
+  $('saveUnitBatchBtn').disabled = false;
+  $('saveUnitBatchBtn').textContent = 'Save All Valid Rows';
+  if(error){ alert('Error saving units: ' + error.message); return; }
+  alert(`Saved ${payloads.length} unit(s).`);
+  UNIT_BATCH_ROWS = [];
+  renderUnitBatchTable();
+  $('unitUpload').value = '';
+  $('unitUploadStatus').textContent = '';
+  await loadUnits();
+  renderUnitsTable();
+  renderUnitSelect();
+  renderPmDueWidget();
+});
+
+// ---------- MAINTENANCE / SERVICE INVOICES ----------
+$('mDate').value = todayISO();
+
+const STANDARD_VENDORS = ['Penske', 'Boxwheel', 'IdealLease'];
+
+function knownVendors(){
+  const set = new Set([...STANDARD_VENDORS, ...MAINTENANCE.map(m=>m.vendor).filter(Boolean)]);
+  return [...set].sort();
+}
+
+$('mUnit').addEventListener('blur', ()=>{
+  const val = $('mUnit').value.trim();
+  if(!val || $('mUnitType').value) return;
+  const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === val.toLowerCase());
+  if(matchedUnit) $('mUnitType').value = typeLabel(matchedUnit.unit_type);
+});
+
+$('mUpdatePmDue').addEventListener('change', ()=>{
+  $('mNextPmField').style.display = $('mUpdatePmDue').checked ? 'block' : 'none';
+});
+
+$('maintForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const { data:{ user } } = await sb.auth.getUser();
+  const unitNumber = $('mUnit').value.trim();
+  if(!unitNumber){ alert('Enter a unit number.'); return; }
+  const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === unitNumber.toLowerCase());
+  const payload = {
+    unit_number: unitNumber,
+    unit_type: $('mUnitType').value.trim() || (matchedUnit ? matchedUnit.unit_type : null),
+    service_date: $('mDate').value,
+    service_type: $('mServiceType').value,
+    vendor: $('mVendor').value.trim() || null,
+    description: $('mDescription').value.trim() || null,
+    amount: Number($('mAmount').value)||0,
+    days_down: Number($('mDaysDown').value)||0,
+    invoice_number: $('mInvoiceNum').value.trim() || null,
+    notes: $('mNotes').value.trim() || null,
+    created_by: user ? user.id : null
+  };
+  const btn = $('maintForm').querySelector('button[type=submit]');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  const { error } = await sb.from('equipment_maintenance').insert(payload);
+  if(error){
+    btn.disabled = false; btn.textContent = 'Save Service Record';
+    alert('Error saving service record: ' + error.message);
+    return;
+  }
+
+  // Optionally push the new PM due date onto the unit record itself.
+  if($('mUpdatePmDue').checked && $('mNextPmDate').value && matchedUnit){
+    const { error: pmErr } = await sb.from('equipment_units')
+      .update({ next_pm_due_date: $('mNextPmDate').value })
+      .eq('id', matchedUnit.id);
+    if(pmErr) alert('Service record saved, but updating the unit\'s Next PM Due Date failed: ' + pmErr.message);
+  }
+
+  btn.disabled = false; btn.textContent = 'Save Service Record';
+
+  // Fast re-entry
+  $('mUnit').value = '';
+  $('mUnitType').value = '';
+  $('mAmount').value = '0';
+  $('mDaysDown').value = '0';
+  $('mInvoiceNum').value = '';
+  $('mDescription').value = '';
+  $('mNotes').value = '';
+  $('mUpdatePmDue').checked = false;
+  $('mNextPmField').style.display = 'none';
+  $('mNextPmDate').value = '';
+  $('mDate').value = todayISO();
+  $('mUnit').focus();
+
+  await loadMaintenance();
+  await loadUnits();
+  renderMaintenance();
+  renderMaintRollup();
+  renderUnitsTable();
+  renderPmDueWidget();
+});
+
+let EDIT_MAINT_ID = null;
+
+function renderMaintenance(){
+  $('mVendorList').innerHTML = knownVendors().map(v=>`<option value="${v}">`).join('');
+
+  const filter = $('mFilterUnit').value.trim().toLowerCase();
+  const rows = MAINTENANCE.filter(m=>!filter || (m.unit_number||'').toLowerCase().includes(filter));
+
+  const tbody = document.querySelector('#maintTable tbody');
+  tbody.innerHTML = '';
+  $('maintEmpty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(m=>{
+    const tr = document.createElement('tr');
+    if(m.id === EDIT_MAINT_ID){
+      const types = ['PM','Repair','Tire','Brake','Engine','Other'];
+      tr.innerHTML = `
+        <td><input type="date" data-f="service_date" value="${m.service_date||''}" style="width:130px;"></td>
+        <td><input type="text" data-f="unit_number" value="${m.unit_number||''}" style="width:80px;"></td>
+        <td><input type="text" data-f="unit_type" value="${m.unit_type||''}" style="width:110px;"></td>
+        <td><select data-f="service_type" style="width:90px;">${types.map(t=>`<option ${m.service_type===t?'selected':''}>${t}</option>`).join('')}</select></td>
+        <td><input type="text" data-f="vendor" value="${m.vendor||''}" list="mVendorList" style="width:120px;"></td>
+        <td><input type="text" data-f="description" value="${(m.description||'').replace(/"/g,'&quot;')}" style="width:200px;"></td>
+        <td><input type="number" step="0.01" data-f="amount" value="${m.amount||0}" style="width:90px;"></td>
+        <td><input type="number" step="0.5" data-f="days_down" value="${m.days_down||0}" style="width:65px;"></td>
+        <td><input type="text" data-f="invoice_number" value="${m.invoice_number||''}" style="width:100px;"></td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm" data-msave="${m.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Save</button>
+          <button class="btn btn-sm btn-outline" data-mcancel style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Cancel</button>
+        </td>`;
+    } else {
+      tr.innerHTML = `<td>${m.service_date}</td><td><strong>${m.unit_number}</strong></td><td>${typeLabel(m.unit_type)}</td>
+        <td>${m.service_type||'—'}</td><td>${m.vendor||'—'}</td><td>${m.description||'—'}</td>
+        <td>${fmt(m.amount)}</td><td>${m.days_down||0}</td><td>${m.invoice_number||'—'}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm btn-outline" data-medit="${m.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Edit</button>
+          <button class="btn btn-sm btn-outline" data-mdel="${m.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Delete</button>
+        </td>`;
+    }
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-medit]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ EDIT_MAINT_ID = btn.dataset.medit; renderMaintenance(); });
+  });
+  tbody.querySelectorAll('[data-mcancel]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ EDIT_MAINT_ID = null; renderMaintenance(); });
+  });
+  tbody.querySelectorAll('[data-msave]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tr = btn.closest('tr');
+      const get = (f) => tr.querySelector(`[data-f="${f}"]`).value;
+      const payload = {
+        service_date: get('service_date'),
+        unit_number: get('unit_number').trim(),
+        unit_type: get('unit_type').trim() || null,
+        service_type: get('service_type') || null,
+        vendor: get('vendor').trim() || null,
+        description: get('description').trim() || null,
+        amount: Number(get('amount'))||0,
+        days_down: Number(get('days_down'))||0,
+        invoice_number: get('invoice_number').trim() || null
+      };
+      btn.disabled = true; btn.textContent = 'Saving...';
+      const { error } = await sb.from('equipment_maintenance').update(payload).eq('id', btn.dataset.msave);
+      if(error){ btn.disabled = false; btn.textContent = 'Save'; alert('Error saving: ' + error.message); return; }
+      EDIT_MAINT_ID = null;
+      await loadMaintenance();
+      renderMaintenance();
+      renderMaintRollup();
+    });
+  });
+  tbody.querySelectorAll('[data-mdel]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Delete this service record?')) return;
+      const { error } = await sb.from('equipment_maintenance').delete().eq('id', btn.dataset.mdel);
+      if(error){ alert('Error deleting: ' + error.message); return; }
+      await loadMaintenance();
+      renderMaintenance();
+      renderMaintRollup();
+    });
+  });
+}
+
+function renderMaintRollup(){
+  const byUnit = {};
+  MAINTENANCE.forEach(m=>{
+    if(!byUnit[m.unit_number]) byUnit[m.unit_number] = { unit_number:m.unit_number, count:0, totalPaid:0, totalDays:0, lastDate:'' };
+    const b = byUnit[m.unit_number];
+    b.count++;
+    b.totalPaid += Number(m.amount)||0;
+    b.totalDays += Number(m.days_down)||0;
+    if(!b.lastDate || m.service_date > b.lastDate) b.lastDate = m.service_date;
+  });
+  const rows = Object.values(byUnit).sort((a,b)=>a.unit_number.localeCompare(b.unit_number, undefined, {numeric:true}));
+  const tbody = document.querySelector('#maintRollupTable tbody');
+  tbody.innerHTML = '';
+  $('maintRollupEmpty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(b=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><strong>${b.unit_number}</strong></td><td>${b.count}</td><td>${fmt(b.totalPaid)}</td><td>${b.totalDays}</td><td>${b.lastDate}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+$('mFilterUnit').addEventListener('input', renderMaintenance);
+
+// ---------- MAINTENANCE BATCH PDF UPLOAD ----------
+let MAINT_BATCH_ROWS = [];
+
+function daysBetween(startISO, endISO){
+  if(!startISO || !endISO) return 0;
+  const d1 = new Date(startISO + 'T00:00:00');
+  const d2 = new Date(endISO + 'T00:00:00');
+  return Math.max(0, Math.round((d2 - d1) / 86400000));
+}
+
+function guessServiceType(text){
+  const t = text.toUpperCase();
+  if(t.includes(' PM ') || t.includes('PREVENTIVE')) return 'PM';
+  if(t.includes('TIRE')) return 'Tire';
+  if(t.includes('BRAKE')) return 'Brake';
+  if(t.includes('ENGINE')) return 'Engine';
+  return 'Repair';
+}
+
+// Parses Penske's single-unit "Repair Detail" PDFs — these have a clean, reliable text layer.
+function parseRepairDetailText(text){
+  const clean = text.replace(/\s+/g,' ').trim();
+  const g = (re) => { const m = clean.match(re); return m ? m[1].trim() : ''; };
+
+  const unit_number = g(/Unit\s*#:\s*(\d+)/i);
+  const unit_type = g(/Unit Type:\s*(.*?)\s*Make:/i);
+  const ro = g(/RO:\s*([\w-]+)/i);
+  const startDate = g(/Repair Start Date:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+  const completionDate = g(/Repair Completion Date:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+  const location = g(/Location:\s*(.*?)\s*Mileage:/i);
+  const complaint = g(/Complaint:\s*(.*?)\s*Cause:/i);
+  const cause = g(/Cause:\s*(.*?)\s*Correction:/i);
+  const correction = g(/Correction:\s*(.*?)\s*(?:Note:|Description|$)/i);
+
+  const totalMatches = [...clean.matchAll(/Total Charge\s*\$?([\d,]+\.\d{2})/gi)];
+  const total = totalMatches.length ? parseFloat(totalMatches[totalMatches.length-1][1].replace(/,/g,'')) : 0;
+
+  const description = [complaint, cause, correction].filter(Boolean).join(' — ');
+
+  return {
+    unit_number, unit_type: normalizeType(unit_type),
+    service_date: toISOFromUS(completionDate || startDate),
+    service_type: guessServiceType(description),
+    vendor: location,
+    description,
+    amount: total,
+    days_down: daysBetween(toISOFromUS(startDate), toISOFromUS(completionDate)),
+    invoice_number: ro,
+    found: !!unit_number
+  };
+}
+
+function toISOFromUS(mmddyyyy){
+  const m = String(mmddyyyy||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return '';
+  return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+}
+
+// Best-effort parser for ANY other vendor's repair/service invoice — no fixed layout assumed.
+// Works reasonably across formats but should always be flagged for the user to verify,
+// unlike the precise Penske Repair Detail parser above.
+function parseGenericInvoiceText(text){
+  const clean = text.replace(/\s+/g,' ').trim();
+  const g = (re) => { const m = clean.match(re); return m ? m[1].trim() : ''; };
+
+  // Amount: the invoice total is almost always the largest dollar figure on the page
+  // (bigger than any single line item, tax, or subtotal).
+  const allAmounts = [...clean.matchAll(/\$?\s?([\d,]+\.\d{2})/g)].map(m=>parseFloat(m[1].replace(/,/g,'')));
+  const amount = allAmounts.length ? Math.max(...allAmounts) : 0;
+
+  // Real invoice/RO/work-order numbers almost always contain a digit — a match that's
+  // pure letters is almost certainly the next column header, not a real value (this
+  // happens on PDFs where field labels and their values land in disconnected blocks
+  // of the text stream, e.g. form-style repair tickets).
+  const hasDigit = (s) => /\d/.test(s);
+  const invoice_number = [
+    g(/Invoice\s*(?:No\.?|Number|#)\s*:?\s*([A-Za-z0-9][\w\-\/]{1,20})/i),
+    g(/Work Order\s*#\s*:?\s*([\w\-]+)/i),
+    g(/\bRO:?\s*([\w\-]+)/i),
+    g(/Ticket\s*#?\s*:?\s*([\w\-]+)/i),
+    g(/Order\s*#\s*:?\s*([\w\-]+)/i)
+  ].find(v => v && hasDigit(v)) || '';
+
+  const labeledDate = g(/(?:Invoice Date|Issue date|Service Date|Date)\s*:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+  const anyDate = labeledDate || g(/(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+
+  // Require a literal "#" so this doesn't match table-header phrases like "Unit Price"/"Unit Cost".
+  const unit_number = g(/(?:Unit|Trailer|Truck)\s*#\s*:?\s*([A-Za-z0-9\-]{2,10})/i);
+
+  // Keep a short excerpt as the description so there's context even when nothing else matched well.
+  const excerpt = clean.length > 220 ? clean.slice(0, 220) + '…' : clean;
+
+  return {
+    unit_number,
+    unit_type: '',
+    service_date: toISOFromUS(anyDate),
+    service_type: guessServiceType(clean),
+    vendor: '',
+    description: excerpt,
+    amount,
+    days_down: 0,
+    invoice_number,
+    found: !!unit_number
+  };
+}
+
+$('maintUpload').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  if(typeof pdfjsLib === 'undefined'){
+    $('maintUploadStatus').textContent = 'PDF reader failed to load (network/CDN issue) — try refreshing the page, or use manual entry below.';
+    e.target.value = '';
+    return;
+  }
+  $('maintUploadStatus').textContent = `Reading ${files.length} file(s)...`;
+  MAINT_BATCH_ROWS = [];
+  for(const file of files){
+    try{
+      const text = await extractPdfText(file);
+      if(text.trim().length > 40){
+        // Real text layer. Use the precise Penske parser when the format matches,
+        // otherwise fall back to the generic best-effort parser for any other vendor.
+        const isPenskeRepairDetail = /Repair Start Date/i.test(text) && /Unit\s*#:/i.test(text);
+        const parsed = isPenskeRepairDetail ? parseRepairDetailText(text) : parseGenericInvoiceText(text);
+        MAINT_BATCH_ROWS.push({
+          fileName: file.name,
+          unit_number: parsed.unit_number,
+          unit_type: parsed.unit_type,
+          service_date: parsed.service_date,
+          service_type: parsed.service_type,
+          vendor: parsed.vendor,
+          description: parsed.description,
+          amount: parsed.amount,
+          days_down: parsed.days_down,
+          invoice_number: parsed.invoice_number,
+          warn: !isPenskeRepairDetail,
+          error: parsed.found ? '' : 'Could not find a unit number — fill in manually'
+        });
+      } else {
+        // Image-based PDF (Penske's consolidated Maintenance Invoice format) — no text to read.
+        const invoiceGuess = (file.name.match(/(\d{6,})/) || [])[1] || '';
+        MAINT_BATCH_ROWS.push({
+          fileName: file.name,
+          unit_number: '',
+          unit_type: '',
+          service_date: '',
+          service_type: 'Repair',
+          vendor: 'Penske',
+          description: '',
+          amount: 0,
+          days_down: 0,
+          invoice_number: invoiceGuess,
+          error: 'Image-based PDF — fill in unit, date, and amount from the invoice'
+        });
+      }
+    }catch(err){
+      MAINT_BATCH_ROWS.push({ fileName:file.name, unit_number:'', error:'Failed to read PDF: '+err.message });
+    }
+  }
+  $('maintUploadStatus').textContent = `Processed ${files.length} file(s). Review below before saving.`;
+  renderMaintBatchTable();
+});
+
+function renderMaintBatchTable(){
+  const card = $('maintBatchCard');
+  const tbody = document.querySelector('#maintBatchTable tbody');
+  tbody.innerHTML = '';
+  $('maintBatchCount').textContent = MAINT_BATCH_ROWS.length;
+  card.style.display = MAINT_BATCH_ROWS.length ? 'block' : 'none';
+
+  MAINT_BATCH_ROWS.forEach((row, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="muted">${row.fileName}</td>
+      <td><input type="text" data-idx="${idx}" data-field="unit_number" value="${row.unit_number||''}" style="width:90px;"></td>
+      <td><input type="date" data-idx="${idx}" data-field="service_date" value="${row.service_date||''}" style="width:135px;"></td>
+      <td>
+        <select data-idx="${idx}" data-field="service_type">
+          ${['PM','Repair','Tire','Brake','Engine','Other'].map(t=>`<option ${row.service_type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+      </td>
+      <td><input type="text" data-idx="${idx}" data-field="vendor" value="${row.vendor||''}" style="width:120px;"></td>
+      <td><input type="text" data-idx="${idx}" data-field="description" value="${(row.description||'').replace(/"/g,'&quot;')}" style="width:220px;"></td>
+      <td><input type="number" step="0.01" data-idx="${idx}" data-field="amount" value="${row.amount||0}" style="width:90px;"></td>
+      <td><input type="number" step="0.5" data-idx="${idx}" data-field="days_down" value="${row.days_down||0}" style="width:70px;"></td>
+      <td><input type="text" data-idx="${idx}" data-field="invoice_number" value="${row.invoice_number||''}" style="width:110px;"></td>
+      <td>${row.error ? `<span class="pill pill-bad">${row.error}</span>` : row.warn ? '<span class="pill pill-warn">Verify — best guess</span>' : '<span class="pill pill-ok">Ready</span>'}</td>
+      <td><button class="btn btn-sm btn-outline" data-remove="${idx}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Remove</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      MAINT_BATCH_ROWS.splice(Number(btn.dataset.remove), 1);
+      renderMaintBatchTable();
+    });
+  });
+
+  tbody.querySelectorAll('input, select').forEach(el=>{
+    el.addEventListener('change', (e)=>{
+      const idx = Number(e.target.dataset.idx);
+      const field = e.target.dataset.field;
+      let val = e.target.value;
+      if(['amount','days_down'].includes(field)) val = Number(val)||0;
+      MAINT_BATCH_ROWS[idx][field] = val;
+      MAINT_BATCH_ROWS[idx].error = MAINT_BATCH_ROWS[idx].unit_number ? '' : 'Missing unit number';
+      if(field==='unit_number') renderMaintBatchTable();
+    });
+  });
+}
+
+$('saveMaintBatchBtn').addEventListener('click', async ()=>{
+  const { data:{ user } } = await sb.auth.getUser();
+  const validRows = MAINT_BATCH_ROWS.filter(r=>r.unit_number && r.service_date);
+  if(!validRows.length){ alert('No valid rows to save — each row needs a unit number and service date.'); return; }
+  const payloads = validRows.map(r=>{
+    const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === r.unit_number.toLowerCase());
+    return {
+      unit_number: r.unit_number,
+      unit_type: matchedUnit ? matchedUnit.unit_type : null,
+      service_date: r.service_date,
+      service_type: r.service_type || 'Repair',
+      vendor: r.vendor || null,
+      description: r.description || null,
+      amount: r.amount || 0,
+      days_down: r.days_down || 0,
+      invoice_number: r.invoice_number || null,
+      created_by: user ? user.id : null
+    };
+  });
+  $('saveMaintBatchBtn').disabled = true;
+  $('saveMaintBatchBtn').textContent = 'Saving...';
+  const { error } = await sb.from('equipment_maintenance').insert(payloads);
+  $('saveMaintBatchBtn').disabled = false;
+  $('saveMaintBatchBtn').textContent = 'Save All Rows';
+  if(error){ alert('Error saving batch: ' + error.message); return; }
+  alert(`Saved ${payloads.length} record(s).`);
+  MAINT_BATCH_ROWS = [];
+  renderMaintBatchTable();
+  $('maintUpload').value = '';
+  $('maintUploadStatus').textContent = '';
+  await loadMaintenance();
+  renderMaintenance();
+  renderMaintRollup();
+});
+
+// ---------- VENDOR STATEMENTS (Boxwheel / IdealLease monthly ACH) ----------
+function monthToISO(monthVal){ return monthVal ? `${monthVal}-01` : ''; }
+function isoToMonth(iso){ return iso ? iso.slice(0,7) : ''; }
+function fmtMonth(iso){
+  if(!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month:'long', year:'numeric' });
+}
+
+function getLastBalance(vendor, excludeId){
+  const rows = VENDOR_STMTS
+    .filter(s=>s.vendor === vendor && s.id !== excludeId)
+    .sort((a,b)=> b.statement_month.localeCompare(a.statement_month));
+  return rows.length ? Number(rows[0].balance_forward_out)||0 : 0;
+}
+
+function updateVsPreview(){
+  const invoice = Number($('vsInvoice').value)||0;
+  const ach = Number($('vsAch').value)||0;
+  const balIn = Number($('vsBalanceIn').value)||0;
+  const balOut = balIn + invoice - ach;
+  const preview = $('vsPreview');
+  preview.innerHTML = `<strong>Balance carried forward: ${fmt(balOut)}</strong>
+    <span class="muted"> (${balIn>=0?'+':''}${fmt(balIn)} brought forward + ${fmt(invoice)} invoiced − ${fmt(ach)} paid)</span>
+    &nbsp; ${balOut > 0.01 ? `<span class="pill pill-bad">You owe ${fmt(balOut)}</span>` : balOut < -0.01 ? `<span class="pill pill-ok">Credit of ${fmt(Math.abs(balOut))}</span>` : `<span class="pill pill-ok">Settled</span>`}`;
+}
+
+$('vsVendor').addEventListener('change', ()=>{
+  const vendor = $('vsVendor').value;
+  if(vendor) $('vsBalanceIn').value = getLastBalance(vendor, null).toFixed(2);
+  updateVsPreview();
+});
+['vsInvoice','vsAch','vsBalanceIn'].forEach(id=>{
+  $(id).addEventListener('input', updateVsPreview);
+});
+updateVsPreview();
+
+$('vendorStmtForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const { data:{ user } } = await sb.auth.getUser();
+  const vendor = $('vsVendor').value;
+  const monthVal = $('vsMonth').value;
+  if(!vendor){ alert('Select a vendor.'); return; }
+  if(!monthVal){ alert('Select a statement month.'); return; }
+  const invoice = Number($('vsInvoice').value)||0;
+  const ach = Number($('vsAch').value)||0;
+  const balIn = Number($('vsBalanceIn').value)||0;
+  const balOut = balIn + invoice - ach;
+  const payload = {
+    vendor,
+    statement_month: monthToISO(monthVal),
+    invoice_amount: invoice,
+    ach_amount: ach,
+    balance_forward_in: balIn,
+    balance_forward_out: balOut,
+    invoice_number: $('vsInvoiceNum').value.trim() || null,
+    notes: $('vsNotes').value.trim() || null,
+    created_by: user ? user.id : null
+  };
+  const btn = $('vendorStmtForm').querySelector('button[type=submit]');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  const { error } = await sb.from('equipment_vendor_statements').insert(payload);
+  btn.disabled = false; btn.textContent = 'Save Statement';
+  if(error){ alert('Error saving: ' + error.message); return; }
+
+  $('vendorStmtForm').reset();
+  $('vsPreview').innerHTML = '';
+  $('vsBalanceIn').value = '0';
+
+  await loadVendorStatements();
+  renderVendorStatements();
+  renderVendorBalances();
+});
+
+function renderVendorBalances(){
+  const vendors = [...new Set(['Boxwheel','IdealLease', ...VENDOR_STMTS.map(s=>s.vendor)])];
+  $('vendorBalanceGrid').innerHTML = vendors.map(v=>{
+    const bal = getLastBalance(v, null);
+    const hasData = VENDOR_STMTS.some(s=>s.vendor===v);
+    const color = !hasData ? 'var(--muted)' : bal > 0.01 ? '#b5341c' : bal < -0.01 ? 'var(--green)' : 'var(--green)';
+    const label = !hasData ? 'No statements yet' : bal > 0.01 ? 'You owe' : bal < -0.01 ? 'Credit' : 'Settled';
+    return `<div class="stat-card"><div class="num" style="color:${color};">${hasData?fmt(Math.abs(bal)):'—'}</div><div class="label">${v} — ${label}</div></div>`;
+  }).join('');
+}
+
+let EDIT_VS_ID = null;
+
+function renderVendorStatements(){
+  const filterVendor = $('vsFilterVendor').value;
+  const rows = VENDOR_STMTS.filter(s=>!filterVendor || s.vendor === filterVendor);
+
+  const tbody = document.querySelector('#vendorStmtTable tbody');
+  tbody.innerHTML = '';
+  $('vendorStmtEmpty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(s=>{
+    const tr = document.createElement('tr');
+    if(s.id === EDIT_VS_ID){
+      tr.innerHTML = `
+        <td><input type="month" data-f="statement_month" value="${isoToMonth(s.statement_month)}" style="width:130px;"></td>
+        <td>
+          <select data-f="vendor" style="width:100px;">
+            ${['Boxwheel','IdealLease'].map(v=>`<option ${s.vendor===v?'selected':''}>${v}</option>`).join('')}
+          </select>
+        </td>
+        <td><input type="number" step="0.01" data-f="invoice_amount" value="${s.invoice_amount||0}" style="width:90px;"></td>
+        <td><input type="number" step="0.01" data-f="ach_amount" value="${s.ach_amount||0}" style="width:90px;"></td>
+        <td><input type="number" step="0.01" data-f="balance_forward_in" value="${s.balance_forward_in||0}" style="width:90px;"></td>
+        <td class="muted">auto on save</td>
+        <td><input type="text" data-f="invoice_number" value="${s.invoice_number||''}" style="width:100px;"></td>
+        <td><input type="text" data-f="notes" value="${(s.notes||'').replace(/"/g,'&quot;')}" style="width:140px;"></td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm" data-vssave="${s.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Save</button>
+          <button class="btn btn-sm btn-outline" data-vscancel style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Cancel</button>
+        </td>`;
+    } else {
+      tr.innerHTML = `<td>${fmtMonth(s.statement_month)}</td><td><strong>${s.vendor}</strong></td>
+        <td>${fmt(s.invoice_amount)}</td><td>${fmt(s.ach_amount)}</td>
+        <td>${fmt(s.balance_forward_in)}</td>
+        <td style="color:${s.balance_forward_out>0.01?'#b5341c':'var(--green)'};font-weight:700;">${fmt(s.balance_forward_out)}</td>
+        <td>${s.invoice_number||'—'}</td><td>${s.notes||'—'}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-sm btn-outline" data-vsedit="${s.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Edit</button>
+          <button class="btn btn-sm btn-outline" data-vsdel="${s.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Delete</button>
+        </td>`;
+    }
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-vsedit]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ EDIT_VS_ID = btn.dataset.vsedit; renderVendorStatements(); });
+  });
+  tbody.querySelectorAll('[data-vscancel]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ EDIT_VS_ID = null; renderVendorStatements(); });
+  });
+  tbody.querySelectorAll('[data-vssave]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tr = btn.closest('tr');
+      const get = (f) => tr.querySelector(`[data-f="${f}"]`).value;
+      const invoice = Number(get('invoice_amount'))||0;
+      const ach = Number(get('ach_amount'))||0;
+      const balIn = Number(get('balance_forward_in'))||0;
+      const payload = {
+        statement_month: monthToISO(get('statement_month')),
+        vendor: get('vendor'),
+        invoice_amount: invoice,
+        ach_amount: ach,
+        balance_forward_in: balIn,
+        balance_forward_out: balIn + invoice - ach,
+        invoice_number: get('invoice_number').trim() || null,
+        notes: get('notes').trim() || null
+      };
+      btn.disabled = true; btn.textContent = 'Saving...';
+      const { error } = await sb.from('equipment_vendor_statements').update(payload).eq('id', btn.dataset.vssave);
+      if(error){ btn.disabled = false; btn.textContent = 'Save'; alert('Error saving: ' + error.message); return; }
+      EDIT_VS_ID = null;
+      await loadVendorStatements();
+      renderVendorStatements();
+      renderVendorBalances();
+    });
+  });
+  tbody.querySelectorAll('[data-vsdel]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Delete this statement? This will not automatically recalculate later months\' balances.')) return;
+      const { error } = await sb.from('equipment_vendor_statements').delete().eq('id', btn.dataset.vsdel);
+      if(error){ alert('Error deleting: ' + error.message); return; }
+      await loadVendorStatements();
+      renderVendorStatements();
+      renderVendorBalances();
+    });
+  });
+}
+
+$('vsFilterVendor').addEventListener('change', renderVendorStatements);
 
 checkSession();
 </script>
