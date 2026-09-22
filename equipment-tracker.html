@@ -111,6 +111,7 @@
       <button class="tab-btn" data-tab="history">Charge History</button>
       <button class="tab-btn" data-tab="units">Units</button>
       <button class="tab-btn" data-tab="reports">Per-Unit Reports</button>
+      <button class="tab-btn" data-tab="txlog">Transaction Log</button>
     </div>
 
     <!-- LOG WEEKLY CHARGE -->
@@ -256,6 +257,77 @@
       </div>
     </div>
 
+    <!-- TRANSACTION LOG -->
+    <div class="tab-panel" id="tab-txlog">
+      <div class="section-row"><h2>Transaction Log</h2></div>
+      <p class="muted" style="margin-bottom:14px;">For logging individual card transactions as Penske runs them — pre-authorizations, true-ups, holds. One row per transaction. Built for fast entry while you're on the phone with them.</p>
+
+      <div class="card">
+        <form id="txForm">
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));">
+            <div class="field"><label>Unit #</label><input type="text" id="txUnit" required placeholder="e.g. 405134"></div>
+            <div class="field"><label>Location</label>
+              <input type="text" id="txLocation" list="txLocationList" placeholder="Penske Las Vegas">
+              <datalist id="txLocationList"></datalist>
+            </div>
+            <div class="field"><label>Payment Date</label><input type="date" id="txDate" required></div>
+            <div class="field"><label>Amount ($)</label><input type="number" step="0.01" id="txAmount" value="0" required></div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));">
+            <div class="field"><label>Auth Hold Start</label><input type="date" id="txHoldStart"></div>
+            <div class="field"><label>Auth Hold End</label><input type="date" id="txHoldEnd"></div>
+            <div class="field"><label>Auth Hold Amount ($)</label><input type="number" step="0.01" id="txHoldAmount" placeholder="optional"></div>
+            <div class="field"><label>Card Last 4</label><input type="text" id="txCardLast4" maxlength="4" placeholder="4693"></div>
+            <div class="field"><label>Card Type</label>
+              <select id="txCardType">
+                <option value="">—</option>
+                <option>VISA</option>
+                <option>AMEX</option>
+                <option>MASTERCARD</option>
+                <option>DISCOVER</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Notes</label>
+            <input type="text" id="txNotes" placeholder="e.g. Pre Authorization for 9/18/2026-9/25/2026">
+          </div>
+          <button class="btn btn-sm" type="submit" style="width:auto;">Add Transaction</button>
+        </form>
+      </div>
+
+      <div class="section-row" style="margin-top:8px;">
+        <h2 style="font-size:1.1rem;">All Transactions</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="txFilterUnit" placeholder="Filter by unit #" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;">
+          <select id="txFilterCard">
+            <option value="">All cards</option>
+          </select>
+        </div>
+      </div>
+      <div class="card table-scroll">
+        <table id="txTable">
+          <thead><tr>
+            <th>Date</th><th>Unit</th><th>Location</th><th>Amount</th><th>Notes</th>
+            <th>Auth Hold Dates</th><th>Auth Hold Amt</th><th>Card</th><th></th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="txEmpty" style="display:none;">No transactions logged yet.</div>
+      </div>
+
+      <div class="section-row" style="margin-top:8px;">
+        <h2 style="font-size:1.1rem;">Per-Unit Totals</h2>
+      </div>
+      <div class="card table-scroll">
+        <table id="txRollupTable">
+          <thead><tr><th>Unit</th><th>Transactions</th><th>Total Amount</th><th>Total Auth Hold</th><th>Last Transaction</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="empty-state" id="txRollupEmpty" style="display:none;">No data yet.</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -267,6 +339,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs
 
 let UNITS = [];
 let CHARGES = [];
+let TRANSACTIONS = [];
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => "$" + (Number(n)||0).toFixed(2);
@@ -325,11 +398,14 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 async function loadAll(){
   await loadUnits();
   await loadCharges();
+  await loadTransactions();
   renderUnitsTable();
   renderUnitSelect();
   renderHistory();
   renderReports();
   renderStats();
+  renderTransactions();
+  renderTxRollup();
 }
 
 async function loadUnits(){
@@ -341,6 +417,11 @@ async function loadCharges(){
   const { data, error } = await sb.from('equipment_weekly_charges').select('*').order('week_start_date', {ascending:false});
   if(error){ console.error(error); return; }
   CHARGES = data || [];
+}
+async function loadTransactions(){
+  const { data, error } = await sb.from('equipment_transactions').select('*').order('payment_date', {ascending:false}).order('created_at', {ascending:false});
+  if(error){ console.error(error); return; }
+  TRANSACTIONS = data || [];
 }
 
 // ---------- EXPECTED / DISCREPANCY CALC ----------
@@ -699,6 +780,127 @@ $('saveBatchBtn').addEventListener('click', async ()=>{
   renderReports();
   renderStats();
 });
+
+// ---------- TRANSACTION LOG ----------
+const todayISO = () => new Date().toISOString().slice(0,10);
+$('txDate').value = todayISO();
+
+function knownLocations(){
+  const set = new Set(TRANSACTIONS.map(t=>t.unit_location).filter(Boolean));
+  return [...set].sort();
+}
+function knownCards(){
+  const set = new Set(TRANSACTIONS.filter(t=>t.card_last4).map(t=>`${t.card_type||''} ${t.card_last4}`.trim()));
+  return [...set].sort();
+}
+
+$('txForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const { data:{ user } } = await sb.auth.getUser();
+  const payload = {
+    unit_number: $('txUnit').value.trim(),
+    unit_location: $('txLocation').value.trim() || null,
+    payment_date: $('txDate').value,
+    amount: Number($('txAmount').value)||0,
+    notes: $('txNotes').value.trim() || null,
+    auth_hold_start: $('txHoldStart').value || null,
+    auth_hold_end: $('txHoldEnd').value || null,
+    auth_hold_amount: $('txHoldAmount').value === '' ? null : Number($('txHoldAmount').value),
+    card_last4: $('txCardLast4').value.trim() || null,
+    card_type: $('txCardType').value || null,
+    created_by: user ? user.id : null
+  };
+  if(!payload.unit_number){ alert('Enter a unit number.'); return; }
+  const btn = $('txForm').querySelector('button[type=submit]');
+  btn.disabled = true;
+  const { error } = await sb.from('equipment_transactions').insert(payload);
+  btn.disabled = false;
+  if(error){ alert('Error saving transaction: ' + error.message); return; }
+
+  // Fast re-entry: keep location/card fields (they tend to repeat during a call),
+  // clear unit/amount/notes/hold fields, refocus unit for the next one.
+  $('txUnit').value = '';
+  $('txAmount').value = '0';
+  $('txNotes').value = '';
+  $('txHoldStart').value = '';
+  $('txHoldEnd').value = '';
+  $('txHoldAmount').value = '';
+  $('txDate').value = todayISO();
+  $('txUnit').focus();
+
+  await loadTransactions();
+  renderTransactions();
+  renderTxRollup();
+});
+
+function fmtHoldRange(t){
+  if(!t.auth_hold_start && !t.auth_hold_end) return '—';
+  return `${t.auth_hold_start||'?'} – ${t.auth_hold_end||'?'}`;
+}
+
+function renderTransactions(){
+  // Keep the location datalist and card filter fresh
+  $('txLocationList').innerHTML = knownLocations().map(l=>`<option value="${l}">`).join('');
+  const cardFilter = $('txFilterCard');
+  const prevCardVal = cardFilter.value;
+  cardFilter.innerHTML = '<option value="">All cards</option>' + knownCards().map(c=>`<option value="${c}">${c}</option>`).join('');
+  cardFilter.value = prevCardVal;
+
+  const unitFilter = $('txFilterUnit').value.trim().toLowerCase();
+  const cardVal = cardFilter.value;
+  const rows = TRANSACTIONS.filter(t=>{
+    if(unitFilter && !(t.unit_number||'').toLowerCase().includes(unitFilter)) return false;
+    if(cardVal && `${t.card_type||''} ${t.card_last4||''}`.trim() !== cardVal) return false;
+    return true;
+  });
+
+  const tbody = document.querySelector('#txTable tbody');
+  tbody.innerHTML = '';
+  $('txEmpty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(t=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${t.payment_date}</td><td><strong>${t.unit_number}</strong></td><td>${t.unit_location||'—'}</td>
+      <td>${fmt(t.amount)}</td><td>${t.notes||'—'}</td>
+      <td>${fmtHoldRange(t)}</td><td>${t.auth_hold_amount!=null?fmt(t.auth_hold_amount):'—'}</td>
+      <td>${t.card_type?`${t.card_type} `:''}${t.card_last4?'••'+t.card_last4:''}${!t.card_type&&!t.card_last4?'—':''}</td>
+      <td><button class="btn btn-sm btn-outline" data-del="${t.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Delete this transaction?')) return;
+      const { error } = await sb.from('equipment_transactions').delete().eq('id', btn.dataset.del);
+      if(error){ alert('Error deleting: ' + error.message); return; }
+      await loadTransactions();
+      renderTransactions();
+      renderTxRollup();
+    });
+  });
+}
+
+function renderTxRollup(){
+  const byUnit = {};
+  TRANSACTIONS.forEach(t=>{
+    if(!byUnit[t.unit_number]) byUnit[t.unit_number] = { unit_number:t.unit_number, count:0, totalAmount:0, totalHold:0, lastDate:'' };
+    const b = byUnit[t.unit_number];
+    b.count++;
+    b.totalAmount += Number(t.amount)||0;
+    b.totalHold += Number(t.auth_hold_amount)||0;
+    if(!b.lastDate || t.payment_date > b.lastDate) b.lastDate = t.payment_date;
+  });
+  const rows = Object.values(byUnit).sort((a,b)=>a.unit_number.localeCompare(b.unit_number, undefined, {numeric:true}));
+  const tbody = document.querySelector('#txRollupTable tbody');
+  tbody.innerHTML = '';
+  $('txRollupEmpty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(b=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><strong>${b.unit_number}</strong></td><td>${b.count}</td><td>${fmt(b.totalAmount)}</td><td>${fmt(b.totalHold)}</td><td>${b.lastDate}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+$('txFilterUnit').addEventListener('input', renderTransactions);
+$('txFilterCard').addEventListener('change', renderTransactions);
 
 checkSession();
 </script>
