@@ -262,7 +262,31 @@
       <div class="section-row"><h2>Transaction Log</h2></div>
       <p class="muted" style="margin-bottom:14px;">For logging individual card transactions as Penske runs them — pre-authorizations, true-ups, holds. One row per transaction. Built for fast entry while you're on the phone with them.</p>
 
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Quick weekly entry</h2>
+        <p class="muted" style="margin-bottom:14px;">Just like the sheet: unit #, type, this week's due amount, and next week's rewrite amount. Type/location auto-fill from the unit if it's already on file — edit if it's wrong.</p>
+        <form id="txQuickForm">
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+            <div class="field"><label>Unit #</label><input type="text" id="txqUnit" list="txqUnitList" required placeholder="e.g. 405134"><datalist id="txqUnitList"></datalist></div>
+            <div class="field"><label>Type</label><input type="text" id="txqType" placeholder="trailer / truck"></div>
+            <div class="field"><label>Location</label><input type="text" id="txqLocation" list="txLocationList" placeholder="Penske Las Vegas"></div>
+            <div class="field"><label>Week Start Date</label><input type="date" id="txqWeekDate" required></div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
+            <div class="field"><label>This Week's Due Amount ($)</label><input type="number" step="0.01" id="txqDue" required placeholder="0.00"></div>
+            <div class="field"><label>Next Week's Rewrite Amount ($) <span class="muted">(optional)</span></label><input type="number" step="0.01" id="txqRewrite" placeholder="0.00"></div>
+          </div>
+          <div class="field">
+            <label>Notes <span class="muted">(optional)</span></label>
+            <input type="text" id="txqNotes" placeholder="anything worth flagging">
+          </div>
+          <button class="btn btn-sm" type="submit" style="width:auto;">Save Week</button>
+        </form>
+      </div>
+
       <div class="card">
+        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Or log a single transaction manually</h2>
+        <p class="muted" style="margin-bottom:14px;">For holds, card details, or anything the quick form above doesn't cover.</p>
         <form id="txForm">
           <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));">
             <div class="field"><label>Unit #</label><input type="text" id="txUnit" required placeholder="e.g. 405134"></div>
@@ -308,7 +332,7 @@
       <div class="card table-scroll">
         <table id="txTable">
           <thead><tr>
-            <th>Date</th><th>Unit</th><th>Location</th><th>Amount</th><th>Notes</th>
+            <th>Date</th><th>Unit</th><th>Type</th><th>Location</th><th>Amount</th><th>Notes</th>
             <th>Auth Hold Dates</th><th>Auth Hold Amt</th><th>Card</th><th></th>
           </tr></thead>
           <tbody></tbody>
@@ -808,8 +832,10 @@ function knownCards(){
 $('txForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const { data:{ user } } = await sb.auth.getUser();
+  const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === $('txUnit').value.trim().toLowerCase());
   const payload = {
     unit_number: $('txUnit').value.trim(),
+    unit_type: matchedUnit ? matchedUnit.unit_type : null,
     unit_location: $('txLocation').value.trim() || null,
     payment_date: $('txDate').value,
     amount: Number($('txAmount').value)||0,
@@ -849,9 +875,108 @@ function fmtHoldRange(t){
   return `${t.auth_hold_start||'?'} – ${t.auth_hold_end||'?'}`;
 }
 
+function knownUnitNumbers(){
+  const set = new Set(UNITS.map(u=>u.unit_number));
+  TRANSACTIONS.forEach(t=>{ if(t.unit_number) set.add(t.unit_number); });
+  return [...set].sort((a,b)=>a.localeCompare(b, undefined, {numeric:true}));
+}
+
+function lastLocationForUnit(unitNumber){
+  const hit = TRANSACTIONS.find(t=>t.unit_number.toLowerCase() === unitNumber.toLowerCase() && t.unit_location);
+  return hit ? hit.unit_location : '';
+}
+
+function autofillUnitInfo(unitInputVal, typeFieldId, locationFieldId){
+  const val = unitInputVal.trim();
+  if(!val) return;
+  const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === val.toLowerCase());
+  const typeField = $(typeFieldId);
+  const locField = $(locationFieldId);
+  if(matchedUnit && !typeField.value){
+    typeField.value = matchedUnit.unit_type + (matchedUnit.description ? ' — ' + matchedUnit.description : '');
+  }
+  if(!locField.value){
+    const loc = lastLocationForUnit(val);
+    if(loc) locField.value = loc;
+  }
+}
+
+$('txqUnit').addEventListener('blur', ()=> autofillUnitInfo($('txqUnit').value, 'txqType', 'txqLocation'));
+$('txUnit').addEventListener('blur', ()=>{
+  if(!$('txLocation').value){
+    const loc = lastLocationForUnit($('txUnit').value.trim());
+    if(loc) $('txLocation').value = loc;
+  }
+});
+
+$('txqWeekDate').value = todayISO();
+
+$('txQuickForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const { data:{ user } } = await sb.auth.getUser();
+  const unitNumber = $('txqUnit').value.trim();
+  if(!unitNumber){ alert('Enter a unit number.'); return; }
+  const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === unitNumber.toLowerCase());
+  const typedType = $('txqType').value.trim();
+  const unitType = typedType || (matchedUnit ? matchedUnit.unit_type : null);
+  const location = $('txqLocation').value.trim() || null;
+  const weekDate = $('txqWeekDate').value;
+  const dueAmount = $('txqDue').value === '' ? null : Number($('txqDue').value);
+  const rewriteAmount = $('txqRewrite').value === '' ? null : Number($('txqRewrite').value);
+  const notes = $('txqNotes').value.trim();
+
+  if(dueAmount === null){ alert("Enter this week's due amount."); return; }
+
+  const rows = [{
+    unit_number: unitNumber,
+    unit_type: unitType,
+    unit_location: location,
+    payment_date: weekDate,
+    amount: dueAmount,
+    notes: notes ? `Weekly Due — ${notes}` : 'Weekly Due',
+    created_by: user ? user.id : null
+  }];
+
+  if(rewriteAmount !== null){
+    const d = new Date(weekDate + 'T00:00:00');
+    d.setDate(d.getDate() + 7);
+    const nextWeekDate = d.toISOString().slice(0,10);
+    rows.push({
+      unit_number: unitNumber,
+      unit_type: unitType,
+      unit_location: location,
+      payment_date: nextWeekDate,
+      amount: rewriteAmount,
+      notes: `Rewrite / Pre-Authorization for week of ${nextWeekDate}` + (notes ? ` — ${notes}` : ''),
+      created_by: user ? user.id : null
+    });
+  }
+
+  const btn = $('txQuickForm').querySelector('button[type=submit]');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  const { error } = await sb.from('equipment_transactions').insert(rows);
+  btn.disabled = false; btn.textContent = 'Save Week';
+  if(error){ alert('Error saving: ' + error.message); return; }
+
+  // Fast re-entry for the next unit
+  $('txqUnit').value = '';
+  $('txqType').value = '';
+  $('txqLocation').value = '';
+  $('txqDue').value = '';
+  $('txqRewrite').value = '';
+  $('txqNotes').value = '';
+  $('txqWeekDate').value = todayISO();
+  $('txqUnit').focus();
+
+  await loadTransactions();
+  renderTransactions();
+  renderTxRollup();
+});
+
 function renderTransactions(){
-  // Keep the location datalist and card filter fresh
+  // Keep the location/unit datalists and card filter fresh
   $('txLocationList').innerHTML = knownLocations().map(l=>`<option value="${l}">`).join('');
+  $('txqUnitList').innerHTML = knownUnitNumbers().map(u=>`<option value="${u}">`).join('');
   const cardFilter = $('txFilterCard');
   const prevCardVal = cardFilter.value;
   cardFilter.innerHTML = '<option value="">All cards</option>' + knownCards().map(c=>`<option value="${c}">${c}</option>`).join('');
@@ -870,7 +995,7 @@ function renderTransactions(){
   $('txEmpty').style.display = rows.length ? 'none' : 'block';
   rows.forEach(t=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${t.payment_date}</td><td><strong>${t.unit_number}</strong></td><td>${t.unit_location||'—'}</td>
+    tr.innerHTML = `<td>${t.payment_date}</td><td><strong>${t.unit_number}</strong></td><td>${t.unit_type||'—'}</td><td>${t.unit_location||'—'}</td>
       <td>${fmt(t.amount)}</td><td>${t.notes||'—'}</td>
       <td>${fmtHoldRange(t)}</td><td>${t.auth_hold_amount!=null?fmt(t.auth_hold_amount):'—'}</td>
       <td>${t.card_type?`${t.card_type} `:''}${t.card_last4?'••'+t.card_last4:''}${!t.card_type&&!t.card_last4?'—':''}</td>
