@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Equipment Tracker | US Freight Logistics LLC</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js"></script>
 <style>
   :root{
     --navy:#0d1b3d; --navy2:#132a5e; --red:#e8462c; --ink:#12172a;
@@ -114,8 +115,31 @@
 
     <!-- LOG WEEKLY CHARGE -->
     <div class="tab-panel active" id="tab-entry">
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Batch upload rental agreements</h2>
+        <p class="muted" style="margin-bottom:14px;">Select all of this week's Penske PDFs at once (works for 1 or 90+ units). Each one gets parsed and matched to a unit automatically — review the table below and fix anything before saving. Units that don't match an existing unit number are flagged so you can add them first.</p>
+        <input type="file" id="pdfUpload" accept="application/pdf" multiple>
+        <div id="pdfStatus" class="muted" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card table-scroll" id="batchCard" style="display:none;margin-bottom:20px;">
+        <div class="section-row" style="margin-bottom:12px;">
+          <h2 style="font-size:1.1rem;">Review batch (<span id="batchCount">0</span> parsed)</h2>
+          <button class="btn btn-sm" id="saveBatchBtn" style="width:auto;">Save All Valid Rows</button>
+        </div>
+        <table id="batchTable">
+          <thead><tr>
+            <th>File</th><th>Unit</th><th>Week Start</th><th>Agreement #</th><th>Base ($)</th>
+            <th>Miles</th><th>Mileage $</th><th>Env Fee $</th><th>Tax $</th><th>Total $</th>
+            <th>Maint. Days</th><th>Status</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
       <div class="card">
-        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:18px;">New weekly charge entry</h2>
+        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Or log a single entry manually</h2>
+        <p class="muted" style="margin-bottom:18px;">Use this for one-off corrections or units without a PDF.</p>
         <form id="chargeForm">
           <div class="form-grid">
             <div class="field"><label>Unit</label>
@@ -239,6 +263,7 @@
 const SUPABASE_URL = "https://zddpivuekcxkltmdvksk.supabase.co";
 const SUPABASE_KEY = "sb_publishable_0GDzLGv4vzmat_vxv1lScQ_DT4wtsLa";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js";
 
 let UNITS = [];
 let CHARGES = [];
@@ -507,6 +532,173 @@ function renderStats(){
     <div class="stat-card"><div class="num" style="color:${totalDiscrepancy>1?'#b5341c':'#1a8a5a'};">${totalDiscrepancy>=0?'+':''}${fmt(totalDiscrepancy)}</div><div class="label">Net Discrepancy</div></div>
   `;
 }
+
+// ---------- PDF BATCH UPLOAD & PARSING ----------
+let BATCH_ROWS = [];
+
+async function extractPdfText(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it=>it.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+function toISODate(mmddyy){
+  // Penske dates come as MM/DD/YY -> assume 20YY
+  const m = mmddyy.match(/(\d{2})\/(\d{2})\/(\d{2})/);
+  if(!m) return '';
+  const [, mm, dd, yy] = m;
+  return `20${yy}-${mm}-${dd}`;
+}
+
+function parsePenskeText(text){
+  const clean = text.replace(/\s+/g,' ');
+  const result = { unit_number:'', agreement_number:'', week_start_date:'', base:0, miles:0, mileageCharge:0, envFee:0, tax:0, total:0, found:{} };
+
+  let m;
+  if(m = clean.match(/Unit\s*#\s*:?\s*(\d+)/i)){ result.unit_number = m[1]; result.found.unit_number = true; }
+  if(m = clean.match(/Rental Agreement\s*#\s*:\s*(\d+)/i)){ result.agreement_number = m[1]; result.found.agreement_number = true; }
+  if(m = clean.match(/Pick Up Date:?\s*(\d{2}\/\d{2}\/\d{2})/i)){ result.week_start_date = toISODate(m[1]); result.found.week_start_date = true; }
+  else if(m = clean.match(/Bill Start Date:?\s*(\d{2}\/\d{2}\/\d{2})/i)){ result.week_start_date = toISODate(m[1]); result.found.week_start_date = true; }
+
+  // Base weekly charge: first "1 Week $X.XX $Y.YY" not preceded by "environmental fee"
+  const weekLineMatches = [...clean.matchAll(/(environmental fee\s*)?1\s+Week\s*(?:@)?\s*\$?([\d,]+\.\d{2})\s*\$?([\d,]+\.\d{2})?/gi)];
+  for(const wm of weekLineMatches){
+    const isEnv = !!wm[1];
+    const charge = parseFloat((wm[3]||wm[2]).replace(/,/g,''));
+    if(isEnv){ result.envFee = charge; result.found.envFee = true; }
+    else if(!result.found.base){ result.base = charge; result.found.base = true; }
+  }
+
+  // Mileage line: "4,000 Miles $0.0400 $160.00"
+  if(m = clean.match(/([\d,]+)\s+Miles\s+\$?([\d.]+)\s+\$?([\d,]+\.\d{2})/i)){
+    result.miles = parseFloat(m[1].replace(/,/g,''));
+    result.mileageCharge = parseFloat(m[3].replace(/,/g,''));
+    result.found.miles = true;
+  }
+
+  // Tax: any "... TAX $XX.XX" line
+  if(m = clean.match(/TAX\s+\$?([\d,]+\.\d{2})/i)){ result.tax = parseFloat(m[1].replace(/,/g,'')); result.found.tax = true; }
+
+  // Total due
+  if(m = clean.match(/TOTAL DUE:?\s*\$?([\d,]+\.\d{2})/i)){ result.total = parseFloat(m[1].replace(/,/g,'')); result.found.total = true; }
+
+  return result;
+}
+
+$('pdfUpload').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  $('pdfStatus').textContent = `Parsing ${files.length} file(s)...`;
+  BATCH_ROWS = [];
+  for(const file of files){
+    try{
+      const text = await extractPdfText(file);
+      const parsed = parsePenskeText(text);
+      const matchedUnit = UNITS.find(u=>u.unit_number === parsed.unit_number);
+      BATCH_ROWS.push({
+        fileName: file.name,
+        unit_number: parsed.unit_number,
+        unit_id: matchedUnit ? matchedUnit.id : '',
+        week_start_date: parsed.week_start_date,
+        agreement_number: parsed.agreement_number,
+        base: parsed.base,
+        miles: parsed.miles,
+        mileageCharge: parsed.mileageCharge,
+        envFee: parsed.envFee,
+        tax: parsed.tax,
+        total: parsed.total,
+        maintenance_days: 0,
+        error: matchedUnit ? '' : (parsed.unit_number ? `Unit ${parsed.unit_number} not found — add it first or select manually` : 'Could not read unit number from PDF')
+      });
+    }catch(err){
+      BATCH_ROWS.push({ fileName:file.name, error:'Failed to read PDF: '+err.message, unit_id:'' });
+    }
+  }
+  $('pdfStatus').textContent = `Parsed ${files.length} file(s). Review below before saving.`;
+  renderBatchTable();
+});
+
+function renderBatchTable(){
+  const card = $('batchCard');
+  const tbody = document.querySelector('#batchTable tbody');
+  tbody.innerHTML = '';
+  $('batchCount').textContent = BATCH_ROWS.length;
+  card.style.display = BATCH_ROWS.length ? 'block' : 'none';
+
+  BATCH_ROWS.forEach((row, idx)=>{
+    const tr = document.createElement('tr');
+    const unitOptions = UNITS.map(u=>`<option value="${u.id}" ${u.id===row.unit_id?'selected':''}>${u.unit_number}</option>`).join('');
+    tr.innerHTML = `
+      <td class="muted">${row.fileName}</td>
+      <td><select data-idx="${idx}" data-field="unit_id" style="min-width:100px;"><option value="">— select —</option>${unitOptions}</select></td>
+      <td><input type="date" data-idx="${idx}" data-field="week_start_date" value="${row.week_start_date||''}" style="width:130px;"></td>
+      <td><input type="text" data-idx="${idx}" data-field="agreement_number" value="${row.agreement_number||''}" style="width:100px;"></td>
+      <td><input type="number" step="0.01" data-idx="${idx}" data-field="base" value="${row.base||0}" style="width:80px;"></td>
+      <td><input type="number" step="1" data-idx="${idx}" data-field="miles" value="${row.miles||0}" style="width:80px;"></td>
+      <td><input type="number" step="0.01" data-idx="${idx}" data-field="mileageCharge" value="${row.mileageCharge||0}" style="width:80px;"></td>
+      <td><input type="number" step="0.01" data-idx="${idx}" data-field="envFee" value="${row.envFee||0}" style="width:80px;"></td>
+      <td><input type="number" step="0.01" data-idx="${idx}" data-field="tax" value="${row.tax||0}" style="width:80px;"></td>
+      <td><input type="number" step="0.01" data-idx="${idx}" data-field="total" value="${row.total||0}" style="width:90px;"></td>
+      <td><input type="number" step="0.5" data-idx="${idx}" data-field="maintenance_days" value="${row.maintenance_days||0}" style="width:70px;"></td>
+      <td>${row.error ? `<span class="pill pill-bad">${row.error}</span>` : '<span class="pill pill-ok">Ready</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('input, select').forEach(el=>{
+    el.addEventListener('change', (e)=>{
+      const idx = Number(e.target.dataset.idx);
+      const field = e.target.dataset.field;
+      BATCH_ROWS[idx][field] = field === 'week_start_date' || field === 'agreement_number' || field === 'unit_id'
+        ? e.target.value : Number(e.target.value)||0;
+      if(field === 'unit_id'){
+        BATCH_ROWS[idx].error = e.target.value ? '' : 'No unit selected';
+        renderBatchTable();
+      }
+    });
+  });
+}
+
+$('saveBatchBtn').addEventListener('click', async ()=>{
+  const { data:{ user } } = await sb.auth.getUser();
+  const validRows = BATCH_ROWS.filter(r=>r.unit_id && r.week_start_date);
+  if(!validRows.length){ alert('No valid rows to save — each row needs a matched unit and a week start date.'); return; }
+  const payloads = validRows.map(r=>({
+    unit_id: r.unit_id,
+    week_start_date: r.week_start_date,
+    agreement_number: r.agreement_number || '',
+    actual_base_charge: r.base || 0,
+    miles_driven: r.miles || 0,
+    actual_mileage_charge: r.mileageCharge || 0,
+    actual_environmental_fee: r.envFee || 0,
+    actual_other_fees: 0,
+    actual_tax: r.tax || 0,
+    actual_total_charged: r.total || 0,
+    maintenance_days: r.maintenance_days || 0,
+    created_by: user ? user.id : null
+  }));
+  $('saveBatchBtn').disabled = true;
+  $('saveBatchBtn').textContent = 'Saving...';
+  const { error } = await sb.from('equipment_weekly_charges').insert(payloads);
+  $('saveBatchBtn').disabled = false;
+  $('saveBatchBtn').textContent = 'Save All Valid Rows';
+  if(error){ alert('Error saving batch: ' + error.message); return; }
+  alert(`Saved ${payloads.length} entries.`);
+  BATCH_ROWS = [];
+  renderBatchTable();
+  $('pdfUpload').value = '';
+  $('pdfStatus').textContent = '';
+  await loadCharges();
+  renderHistory();
+  renderReports();
+  renderStats();
+});
 
 checkSession();
 </script>
