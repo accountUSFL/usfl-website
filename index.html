@@ -874,7 +874,10 @@
           <h2>Get in Touch</h2>
           <p class="lead">Tell us about your transportation needs and a member of our operations team will contact you shortly.</p>
         </div>
-        <form class="reveal">
+        <form class="reveal" id="contactForm">
+          <input type="hidden" name="access_key" value="a0b98624-d708-4f1f-88bb-680486659426">
+          <input type="hidden" name="subject" value="New contact form submission — usfltransit.com">
+          <input type="checkbox" name="botcheck" style="display:none;" tabindex="-1" autocomplete="off">
           <div class="row2">
             <div class="field">
               <label>First Name <span>(required)</span></label>
@@ -894,12 +897,13 @@
             <textarea name="message" required></textarea>
           </div>
           <div class="field" style="display:flex;gap:10px;align-items:flex-start;">
-            <input type="checkbox" name="sms_consent" required style="width:auto;margin-top:3px;flex-shrink:0;">
+            <input type="checkbox" name="sms_consent" style="width:auto;margin-top:3px;flex-shrink:0;">
             <label style="font-weight:400;font-size:.85rem;color:var(--slate);margin:0;line-height:1.6;">
               I agree to receive SMS communications from US Freight Logistics LLC regarding my inquiry, shipment updates, dispatch communications, and account notifications. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for assistance. View our <a href="privacy.html" style="text-decoration:underline;">Privacy Policy</a> and <a href="terms.html" style="text-decoration:underline;">Terms of Service</a>.
             </label>
           </div>
           <button type="submit" class="btn btn-primary" style="border:none;cursor:pointer;">Send</button>
+          <p id="contactFormStatus" style="margin-top:14px;font-size:.9rem;display:none;"></p>
         </form>
       </div>
     </div>
@@ -962,6 +966,53 @@
       });
     }, {threshold:.12, rootMargin:'0px 0px -40px 0px'});
     items.forEach(function(el){ io.observe(el); });
+  })();
+
+  (function(){
+    var form = document.getElementById('contactForm');
+    if(!form) return;
+    var status = document.getElementById('contactFormStatus');
+    var submitBtn = form.querySelector('button[type=submit]');
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      var accessKey = form.querySelector('[name=access_key]').value;
+      if(!accessKey || accessKey === 'YOUR_WEB3FORMS_ACCESS_KEY_HERE'){
+        status.style.display = 'block';
+        status.style.color = '#c0392b';
+        status.textContent = 'Form isn\'t configured yet — add a Web3Forms access key.';
+        return;
+      }
+      submitBtn.disabled = true;
+      var originalText = submitBtn.textContent;
+      submitBtn.textContent = 'Sending...';
+      status.style.display = 'none';
+      fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(Object.fromEntries(new FormData(form)))
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+        status.style.display = 'block';
+        if(data.success){
+          status.style.color = '#1a8a5a';
+          status.textContent = 'Thanks — your message has been sent. We\'ll be in touch shortly.';
+          form.reset();
+        } else {
+          status.style.color = '#c0392b';
+          status.textContent = 'Something went wrong sending your message. Please try again or email operations@usfltransit.com directly.';
+        }
+      })
+      .catch(function(){
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+        status.style.display = 'block';
+        status.style.color = '#c0392b';
+        status.textContent = 'Something went wrong sending your message. Please try again or email operations@usfltransit.com directly.';
+      });
+    });
   })();
 </script>
 </body>
