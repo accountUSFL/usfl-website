@@ -328,6 +328,7 @@
               <div class="field"><label>Included Miles (blank = none)</label><input type="number" step="1" id="uIncludedMiles"></div>
               <div class="field"><label>Per-Mile Rate ($)</label><input type="number" step="0.0001" id="uPerMile" value="0.04"></div>
               <div class="field"><label>Fees ($/week)</label><input type="number" step="0.01" id="uEnvFee" value="35.00"></div>
+              <div class="field"><label>Sales Tax Rate (%) <span class="muted">(varies by location)</span></label><input type="number" step="0.001" id="uTaxRate" value="0"></div>
               <div class="field"><label>Next PM Due Date</label><input type="date" id="uPmDue"></div>
             </div>
 
@@ -841,6 +842,7 @@ function openUnitModal(unit){
     $('uIncludedMiles').value = unit.included_miles ?? '';
     $('uPerMile').value = unit.per_mile_rate ?? 0.04;
     $('uEnvFee').value = unit.environmental_fee ?? 35.00;
+    $('uTaxRate').value = unit.tax_rate ?? 0;
     $('uPmDue').value = unit.next_pm_due_date || '';
   }
   $('unitModalOverlay').classList.add('open');
@@ -1023,6 +1025,7 @@ $('unitForm').addEventListener('submit', async (e)=>{
     included_miles: $('uIncludedMiles').value === '' ? null : Number($('uIncludedMiles').value),
     per_mile_rate: Number($('uPerMile').value)||0,
     environmental_fee: Number($('uEnvFee').value)||0,
+    tax_rate: Number($('uTaxRate').value)||0,
     next_pm_due_date: $('uPmDue').value || null
   };
   const submitBtn = $('unitForm').querySelector('button[type=submit]');
@@ -1302,16 +1305,55 @@ function renderReports(){
 $('rFilterUnit').addEventListener('input', renderReports);
 
 // ---------- STATS ----------
+// Mirrors the Quick Weekly Entry overcharge math (updateTxqFlag) so the top-level
+// stats can check equipment_transactions rows the same way, since that's where
+// all vendors log their weekly charges now (equipment_charges / Log Weekly
+// Charge is only still used for a handful of monthly/daily-fee cases).
+function computeTxExpected(unit, milesDriven){
+  if(!unit) return null;
+  let expectedMileage = 0;
+  if(milesDriven !== null && milesDriven !== undefined){
+    expectedMileage = unit.included_miles !== null && unit.included_miles !== undefined
+      ? Math.max(0, milesDriven - unit.included_miles) * unit.per_mile_rate
+      : milesDriven * unit.per_mile_rate;
+  }
+  const preTax = (unit.weekly_base_rate||0) + expectedMileage + (unit.environmental_fee||0);
+  const taxRate = Number(unit.tax_rate)||0;
+  return preTax * (1 + taxRate/100);
+}
+
 function renderStats(){
   const totalUnits = UNITS.length;
   const truckCount = UNITS.filter(u=>TRUCK_TYPES.includes(u.unit_type)).length;
   const trailerCount = UNITS.filter(u=>TRAILER_TYPES.includes(u.unit_type)).length;
-  const totalCharged = CHARGES.reduce((s,c)=>s+(Number(c.actual_total_charged)||0),0);
+
+  let totalCharged = CHARGES.reduce((s,c)=>s+(Number(c.actual_total_charged)||0),0);
   let flaggedCount = 0, totalDiscrepancy = 0;
   CHARGES.forEach(c=>{
     const unit = UNITS.find(u=>u.id===c.unit_id);
     const r = computeExpected(unit, c);
     if(r){ if(r.flagged) flaggedCount++; totalDiscrepancy += r.diff; }
+  });
+
+  // A single week's charge can be split across multiple cards (multiple rows,
+  // same unit + payment_date) -- group those back together before comparing
+  // against what that week was expected to cost.
+  const txByUnitWeek = {};
+  TRANSACTIONS.forEach(t=>{
+    const key = `${(t.unit_number||'').toLowerCase()}__${t.payment_date}`;
+    if(!txByUnitWeek[key]) txByUnitWeek[key] = { unit_number:t.unit_number, amount:0, miles_driven:null };
+    const w = txByUnitWeek[key];
+    w.amount += Number(t.amount)||0;
+    totalCharged += Number(t.amount)||0;
+    if(t.miles_driven !== null && t.miles_driven !== undefined) w.miles_driven = Number(t.miles_driven);
+  });
+  Object.values(txByUnitWeek).forEach(w=>{
+    const unit = UNITS.find(u=>u.unit_number.toLowerCase() === (w.unit_number||'').toLowerCase());
+    const expected = computeTxExpected(unit, w.miles_driven);
+    if(expected === null) return;
+    const diff = w.amount - expected;
+    if(Math.abs(diff) > 1) flaggedCount++;
+    totalDiscrepancy += diff;
   });
   $('statGrid').innerHTML = `
     <div class="stat-card"><div class="num">${totalUnits}</div><div class="label">Units Tracked</div><div class="sublabel">${truckCount} trucks &nbsp;|&nbsp; ${trailerCount} trailers</div></div>
@@ -1686,18 +1728,21 @@ function updateTxqFlag(){
       ? Math.max(0, miles - unit.included_miles) * unit.per_mile_rate
       : miles * unit.per_mile_rate;
   }
-  const expected = (unit.weekly_base_rate||0) + expectedMileage + (unit.environmental_fee||0);
+  const expectedPreTax = (unit.weekly_base_rate||0) + expectedMileage + (unit.environmental_fee||0);
+  const taxRate = Number(unit.tax_rate)||0;
+  const expected = expectedPreTax * (1 + taxRate/100);
   const diff = due - expected;
+  const taxNote = taxRate ? ` incl. ${taxRate}% tax` : ' before tax — set a tax rate on this unit for a full check';
   if(Math.abs(diff) > 1){
     flag.style.display = 'block';
     flag.style.background = '#fef6e0';
     flag.style.color = '#a3720c';
-    flag.textContent = `Expected ${fmt(expected)}${miles===null ? ' (base + fees only — add miles for a full check)' : ''} — due amount is ${diff>0?'':'-'}${fmt(Math.abs(diff))} ${diff>0?'over':'under'}.`;
+    flag.textContent = `Expected ${fmt(expected)}${taxNote}${miles===null ? ', base + fees only — add miles for a full check' : ''} — due amount is ${diff>0?'':'-'}${fmt(Math.abs(diff))} ${diff>0?'over':'under'}.`;
   } else {
     flag.style.display = 'block';
     flag.style.background = '#e9f7f0';
     flag.style.color = 'var(--green)';
-    flag.textContent = `Matches expected ${fmt(expected)}.`;
+    flag.textContent = `Matches expected ${fmt(expected)}${taxNote}.`;
   }
 }
 ['txqMiles','txqDue'].forEach(id=>$(id).addEventListener('input', ()=>{ updateTxqFlag(); updateSplitTotalCheck(); }));
