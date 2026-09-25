@@ -350,7 +350,7 @@
           <div class="modal-section-title" style="margin-top:0;">Transactions (rewrites &amp; payments)</div>
           <div class="table-scroll" style="max-height:280px;overflow-y:auto;">
             <table id="unitDetailTxTable">
-              <thead><tr><th>Date</th><th>Type</th><th>Location</th><th>Amount</th><th>Notes</th><th>Auth Hold</th><th>Card</th></tr></thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Location</th><th>Amount</th><th>Notes</th><th>Card</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -553,7 +553,7 @@
         <table id="txTable">
           <thead><tr>
             <th>Date</th><th>Unit</th><th>Type</th><th>Location</th><th>Amount</th><th>Notes</th>
-            <th>Auth Hold Dates</th><th>Auth Hold Amt</th><th>Card</th><th></th>
+            <th>Card</th><th></th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -565,7 +565,7 @@
       </div>
       <div class="card table-scroll">
         <table id="txRollupTable">
-          <thead><tr><th>Unit</th><th>Transactions</th><th>Total Amount</th><th>Total Auth Hold</th><th>Last Transaction</th></tr></thead>
+          <thead><tr><th>Unit</th><th>Transactions</th><th>Total Amount</th><th>Last Transaction</th></tr></thead>
           <tbody></tbody>
         </table>
         <div class="empty-state" id="txRollupEmpty" style="display:none;">No data yet.</div>
@@ -879,7 +879,6 @@ function openUnitDetailModal(unit){
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${t.payment_date||'—'}</td><td>${t.unit_type||'—'}</td><td>${t.unit_location||'—'}</td>
       <td>${fmt(t.amount)}</td><td>${t.notes||'—'}</td>
-      <td>${fmtHoldRange(t)}</td>
       <td>${t.card_type?`${t.card_type} `:''}${t.card_last4?'••'+t.card_last4:''}${!t.card_type&&!t.card_last4?'—':''}</td>`;
     txTbody.appendChild(tr);
   });
@@ -1883,8 +1882,6 @@ function renderTransactions(){
         <td><input type="text" data-f="unit_location" value="${t.unit_location||''}" list="txLocationList" style="width:120px;"></td>
         <td><input type="number" step="0.01" data-f="amount" value="${t.amount||0}" style="width:90px;"></td>
         <td><input type="text" data-f="notes" value="${(t.notes||'').replace(/"/g,'&quot;')}" style="width:150px;"></td>
-        <td><input type="date" data-f="auth_hold_start" value="${t.auth_hold_start||''}" style="width:130px;" title="Auth hold start (end auto = +7 days)"></td>
-        <td><input type="number" step="0.01" data-f="auth_hold_amount" value="${t.auth_hold_amount??''}" style="width:90px;"></td>
         <td>
           <input type="text" data-f="card_last4" value="${t.card_last4||''}" maxlength="4" style="width:55px;">
           <select data-f="card_type" style="width:80px;">${cardTypes.map(c=>`<option ${t.card_type===c?'selected':''}>${c}</option>`).join('')}</select>
@@ -1896,7 +1893,6 @@ function renderTransactions(){
     } else {
       tr.innerHTML = `<td>${t.payment_date}</td><td><strong>${t.unit_number}</strong></td><td>${t.unit_type||'—'}</td><td>${t.unit_location||'—'}</td>
         <td>${fmt(t.amount)}</td><td>${t.notes||'—'}</td>
-        <td>${fmtHoldRange(t)}</td><td>${t.auth_hold_amount!=null?fmt(t.auth_hold_amount):'—'}</td>
         <td>${t.card_type?`${t.card_type} `:''}${t.card_last4?'••'+t.card_last4:''}${!t.card_type&&!t.card_last4?'—':''}</td>
         <td style="white-space:nowrap;">
           <button class="btn btn-sm btn-outline" data-edit="${t.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Edit</button>
@@ -1916,7 +1912,6 @@ function renderTransactions(){
     btn.addEventListener('click', async ()=>{
       const tr = btn.closest('tr');
       const get = (f) => tr.querySelector(`[data-f="${f}"]`).value;
-      const holdStart = get('auth_hold_start') || null;
       const payload = {
         payment_date: get('payment_date'),
         unit_number: get('unit_number').trim(),
@@ -1924,9 +1919,6 @@ function renderTransactions(){
         unit_location: get('unit_location').trim() || null,
         amount: Number(get('amount'))||0,
         notes: get('notes').trim() || null,
-        auth_hold_start: holdStart,
-        auth_hold_end: holdStart ? friWeekEnd(holdStart) : null,
-        auth_hold_amount: get('auth_hold_amount') === '' ? null : Number(get('auth_hold_amount')),
         card_last4: get('card_last4').trim() || null,
         card_type: get('card_type') || null
       };
@@ -1954,11 +1946,10 @@ function renderTransactions(){
 function renderTxRollup(){
   const byUnit = {};
   TRANSACTIONS.forEach(t=>{
-    if(!byUnit[t.unit_number]) byUnit[t.unit_number] = { unit_number:t.unit_number, count:0, totalAmount:0, totalHold:0, lastDate:'' };
+    if(!byUnit[t.unit_number]) byUnit[t.unit_number] = { unit_number:t.unit_number, count:0, totalAmount:0, lastDate:'' };
     const b = byUnit[t.unit_number];
     b.count++;
     b.totalAmount += Number(t.amount)||0;
-    b.totalHold += Number(t.auth_hold_amount)||0;
     if(!b.lastDate || t.payment_date > b.lastDate) b.lastDate = t.payment_date;
   });
   const rows = Object.values(byUnit).sort((a,b)=>a.unit_number.localeCompare(b.unit_number, undefined, {numeric:true}));
@@ -1967,7 +1958,7 @@ function renderTxRollup(){
   $('txRollupEmpty').style.display = rows.length ? 'none' : 'block';
   rows.forEach(b=>{
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><strong>${b.unit_number}</strong></td><td>${b.count}</td><td>${fmt(b.totalAmount)}</td><td>${fmt(b.totalHold)}</td><td>${b.lastDate}</td>`;
+    tr.innerHTML = `<td><strong>${b.unit_number}</strong></td><td>${b.count}</td><td>${fmt(b.totalAmount)}</td><td>${b.lastDate}</td>`;
     tbody.appendChild(tr);
   });
 }
