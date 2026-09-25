@@ -50,6 +50,13 @@
   .subtab-btn.active{color:var(--navy);border-bottom-color:var(--red);}
   .subtab-count{background:#eee;color:var(--slate);font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:10px;}
   .subtab-btn.active .subtab-count{background:var(--red);color:#fff;}
+  .col-picker{position:relative;}
+  .col-picker-panel{display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,.16);padding:12px 14px;min-width:230px;z-index:60;}
+  .col-picker-panel.open{display:block;}
+  .col-picker-panel label{display:flex;align-items:center;gap:8px;font-size:.85rem;padding:5px 0;cursor:pointer;white-space:nowrap;}
+  .col-picker-panel input[type="checkbox"]{width:auto;margin:0;}
+  .col-picker-actions{display:flex;justify-content:space-between;margin-top:6px;padding-top:8px;border-top:1px solid var(--line);}
+  .col-picker-actions button{background:none;border:none;color:var(--red);font-weight:700;font-size:.78rem;cursor:pointer;padding:0;}
   .modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,25,35,.5);z-index:1000;align-items:center;justify-content:center;padding:20px;}
   .modal-overlay.open{display:flex;}
   .modal-box{background:#fff;border-radius:10px;width:100%;max-width:640px;max-height:90vh;overflow-y:auto;padding:24px 28px;}
@@ -245,7 +252,10 @@
 
     <!-- HISTORY -->
     <div class="tab-panel" id="tab-history">
-      <div class="section-row"><h2>Charge History</h2></div>
+      <div class="section-row">
+        <h2>Charge History</h2>
+        <input type="text" id="hFilterUnit" list="unitFilterList" placeholder="Filter by unit #" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;">
+      </div>
       <div class="card table-scroll">
         <table id="historyTable">
           <thead><tr>
@@ -329,6 +339,38 @@
         </div>
       </div>
 
+      <div class="modal-overlay" id="unitDetailModalOverlay">
+        <div class="modal-box" style="max-width:920px;">
+          <div class="modal-header">
+            <h2 id="unitDetailTitle">Unit detail</h2>
+            <button type="button" class="modal-close" id="unitDetailClose" aria-label="Close">&times;</button>
+          </div>
+          <p class="modal-subtitle" id="unitDetailSubtitle"></p>
+          <div id="unitDetailSummary" style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:18px;"></div>
+          <div class="modal-section-title" style="margin-top:0;">Transactions (rewrites &amp; payments)</div>
+          <div class="table-scroll" style="max-height:280px;overflow-y:auto;">
+            <table id="unitDetailTxTable">
+              <thead><tr><th>Date</th><th>Type</th><th>Location</th><th>Amount</th><th>Notes</th><th>Auth Hold</th><th>Card</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="unitDetailTxEmpty" style="display:none;">No transactions logged for this unit yet.</div>
+
+          <div class="modal-section-title">Weekly Charges</div>
+          <div class="table-scroll" style="max-height:280px;overflow-y:auto;">
+            <table id="unitDetailChargeTable">
+              <thead><tr><th>Week</th><th>Agreement #</th><th>Actual Total</th><th>Expected Total</th><th>Difference</th><th>Status</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="unitDetailChargeEmpty" style="display:none;">No weekly charges logged for this unit yet.</div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-outline" id="unitDetailCloseBtn" style="width:auto;">Close</button>
+          </div>
+        </div>
+      </div>
+
       <div class="card" id="bulkUnitCard">
         <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Bulk import units</h2>
         <p class="muted" style="margin-bottom:14px;">Have your team fill out the <a href="units-import-template.xlsx" download style="color:var(--red);font-weight:700;">units import template</a>, then upload it here. Matches by Unit Number — existing units get updated, new ones get added.</p>
@@ -350,9 +392,17 @@
         </table>
       </div>
 
-      <div class="subtabs" id="unitSubtabs">
-        <button class="subtab-btn active" data-unitsubtab="trucks">Trucks <span class="subtab-count" id="unitSubtabCountTrucks">0</span></button>
-        <button class="subtab-btn" data-unitsubtab="trailers">Trailers <span class="subtab-count" id="unitSubtabCountTrailers">0</span></button>
+      <div class="section-row" style="margin-top:8px;">
+        <div class="subtabs" id="unitSubtabs" style="margin-bottom:0;border-bottom:none;">
+          <button class="subtab-btn active" data-unitsubtab="trucks">Trucks <span class="subtab-count" id="unitSubtabCountTrucks">0</span></button>
+          <button class="subtab-btn" data-unitsubtab="trailers">Trailers <span class="subtab-count" id="unitSubtabCountTrailers">0</span></button>
+        </div>
+        <input type="text" id="uFilterUnit" list="unitFilterList" placeholder="Filter by unit #" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;">
+        <datalist id="unitFilterList"></datalist>
+        <div class="col-picker" id="colPicker">
+          <button type="button" class="btn btn-sm btn-outline" id="colPickerBtn" style="width:auto;height:auto;padding:8px 12px;">Columns ▾</button>
+          <div class="col-picker-panel" id="colPickerPanel"></div>
+        </div>
       </div>
 
       <div class="card table-scroll">
@@ -366,7 +416,10 @@
 
     <!-- REPORTS -->
     <div class="tab-panel" id="tab-reports">
-      <div class="section-row"><h2>Per-Unit Reports</h2></div>
+      <div class="section-row">
+        <h2>Per-Unit Reports</h2>
+        <input type="text" id="rFilterUnit" list="unitFilterList" placeholder="Filter by unit #" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;">
+      </div>
       <div class="card table-scroll">
         <table id="reportsTable">
           <thead><tr><th>Unit</th><th>Weeks Logged</th><th>Total Charged</th><th>Total Expected</th><th>Total Discrepancy</th><th>Avg Miles/Week</th></tr></thead>
@@ -437,23 +490,32 @@
 
       <div class="card" style="margin-bottom:20px;">
         <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Quick weekly entry</h2>
-        <p class="muted" style="margin-bottom:14px;">Just like the sheet: unit #, type, card used, this week's due amount, and next week's rewrite amount. Type/location auto-fill from the unit if it's already on file — edit if it's wrong. Both post on the same Friday you select — the due amount settles the week that's ending, and the rewrite is the pre-auth for the week that starts that day.</p>
+        <p class="muted" style="margin-bottom:14px;">Just like the sheet: unit #, type, card used, and the final amount Penske actually charged this week. Type/location auto-fill from the unit if it's already on file — edit if it's wrong. Log the captured amount each Friday once Penske pulls it — Penske's mid-week pre-auth hold is just an estimate and isn't tracked here since it isn't real money until it's captured.</p>
         <form id="txQuickForm">
           <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
             <div class="field"><label>Unit #</label><input type="text" id="txqUnit" list="txqUnitList" required placeholder="e.g. 405134"><datalist id="txqUnitList"></datalist></div>
             <div class="field"><label>Type</label><input type="text" id="txqType" placeholder="trailer / truck"></div>
-            <div class="field"><label>Location</label><input type="text" id="txqLocation" list="txLocationList"><datalist id="txLocationList"></datalist></div>
-            <div class="field"><label>Week Start (Friday)</label><select id="txqWeek" required><option value="">— select week —</option></select></div>
+            <div class="field"><label>Vendor & Location</label><input type="text" id="txqLocation" list="txqVendorLocationList" placeholder="e.g. Penske - Las Vegas North"><datalist id="txqVendorLocationList"></datalist></div>
+          </div>
+          <datalist id="txLocationList"></datalist>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));">
+            <div class="field" id="txqWeekFridayField"><label>Week Start (Friday)</label><select id="txqWeek" required><option value="">— select week —</option></select></div>
+            <div class="field" id="txqWeekAnyField" style="display:none;"><label>Payment Date</label><input type="date" id="txqWeekAny"></div>
           </div>
           <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));">
             <div class="field"><label>Miles Driven This Week <span class="muted">(for the overcharge check)</span></label><input type="number" step="1" id="txqMiles" placeholder="2850"></div>
           </div>
           <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));">
-            <div class="field"><label>This Week's Due Amount ($)</label><input type="number" step="0.01" id="txqDue" required placeholder="0.00"></div>
-            <div class="field"><label>Next Week's Rewrite Amount ($) <span class="muted">(optional — same date, covers this Fri–next Fri)</span></label><input type="number" step="0.01" id="txqRewrite" placeholder="0.00"></div>
+            <div class="field"><label>Final Amount Charged This Week ($)</label><input type="number" step="0.01" id="txqDue" required placeholder="0.00"></div>
           </div>
           <div id="txqFlag" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:8px;font-size:.85rem;font-weight:600;"></div>
-          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+          <div class="field" style="margin-bottom:10px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+              <input type="checkbox" id="txqSplitToggle" style="width:auto;">
+              Paid across multiple cards
+            </label>
+          </div>
+          <div id="txqSingleCard" class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
             <div class="field"><label>Card Last 4</label><input type="text" id="txqCardLast4" maxlength="4"></div>
             <div class="field"><label>Card Type</label>
               <select id="txqCardType">
@@ -465,6 +527,11 @@
               </select>
             </div>
           </div>
+          <div id="txqSplitCards" style="display:none;margin-bottom:10px;">
+            <div id="txqSplitRows"></div>
+            <button type="button" class="btn btn-sm btn-outline" id="txqAddSplitBtn" style="width:auto;margin-top:4px;">+ Add another card</button>
+            <div id="txqSplitTotalCheck" style="margin-top:8px;font-size:.8rem;font-weight:600;"></div>
+          </div>
           <div class="field">
             <label>Notes <span class="muted">(optional)</span></label>
             <input type="text" id="txqNotes" placeholder="anything worth flagging">
@@ -473,40 +540,10 @@
         </form>
       </div>
 
-      <div class="card" style="margin-bottom:20px;">
-        <h2 style="font-size:1.1rem;color:var(--navy);margin-bottom:6px;">Paste a weekly invoice list</h2>
-        <p class="muted" style="margin-bottom:14px;">For vendors like IdealLease who email a plain list of invoice numbers and amounts each week — no PDF, no unit number. Paste the lines below, review, and save. Unit # is left blank for you to fill in later since it's not in the email; repair-type invoices can be routed to Maintenance instead of Transaction Log.</p>
-        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));">
-          <div class="field"><label>Vendor</label>
-            <input type="text" id="wlVendor" list="txLocationList">
-          </div>
-          <div class="field"><label>Week / Payment Date</label><input type="date" id="wlDate"></div>
-        </div>
-        <div class="field">
-          <label>Paste lines here <span class="muted">(one per line: "INVOICE# $amount")</span></label>
-          <textarea id="wlPaste" rows="6" style="width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:10px;font-family:inherit;font-size:.9rem;"></textarea>
-        </div>
-        <button class="btn btn-sm btn-outline" id="wlParseBtn" type="button" style="width:auto;">Parse List</button>
-      </div>
-
-      <div class="card table-scroll" id="wlReviewCard" style="display:none;margin-bottom:20px;">
-        <div class="section-row" style="margin-bottom:12px;">
-          <h2 style="font-size:1.1rem;">Review (<span id="wlCount">0</span> lines, total <span id="wlTotal">$0.00</span>)</h2>
-          <button class="btn btn-sm" id="wlSaveBtn" style="width:auto;">Save All</button>
-        </div>
-        <table id="wlTable">
-          <thead><tr>
-            <th>Invoice #</th><th>Amount</th><th>Unit # <span class="muted">(optional)</span></th>
-            <th>Route To</th><th>Notes</th><th></th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
       <div class="section-row" style="margin-top:8px;">
         <h2 style="font-size:1.1rem;">All Transactions</h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="text" id="txFilterUnit" placeholder="Filter by unit #" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;">
+          <input type="text" id="txFilterUnit" list="unitFilterList" placeholder="Filter by unit #" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;">
           <select id="txFilterCard">
             <option value="">All cards</option>
           </select>
@@ -607,7 +644,7 @@
 
       <div class="section-row" style="margin-top:8px;">
         <h2 style="font-size:1.1rem;">All Service Records</h2>
-        <input type="text" id="mFilterUnit" placeholder="Filter by unit #" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;">
+        <input type="text" id="mFilterUnit" list="unitFilterList" placeholder="Filter by unit #" style="padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;">
       </div>
       <div class="card table-scroll">
         <table id="maintTable">
@@ -816,6 +853,159 @@ $('unitModalClose').addEventListener('click', closeUnitModal);
 $('unitModalCancel').addEventListener('click', closeUnitModal);
 $('unitModalOverlay').addEventListener('click', (e)=>{ if(e.target.id === 'unitModalOverlay') closeUnitModal(); });
 
+// ---------- UNIT DETAIL MODAL ----------
+function openUnitDetailModal(unit){
+  $('unitDetailTitle').textContent = `Unit ${unit.unit_number}`;
+  $('unitDetailSubtitle').textContent = `${typeLabel(unit.unit_type)} · ${shortVendor(unit.vendor) || 'No vendor set'}${unit.location ? ' · ' + unit.location : ''}`;
+
+  const txRows = TRANSACTIONS.filter(t=>(t.unit_number||'').toLowerCase() === unit.unit_number.toLowerCase())
+    .slice().sort((a,b)=> (b.payment_date||'').localeCompare(a.payment_date||''));
+  const chargeRows = CHARGES.filter(c=>c.unit_id === unit.id)
+    .slice().sort((a,b)=> (b.week_start_date||'').localeCompare(a.week_start_date||''));
+
+  const totalTx = txRows.reduce((s,t)=>s+(Number(t.amount)||0),0);
+  const totalCharged = chargeRows.reduce((s,c)=>s+(Number(c.actual_total_charged)||0),0);
+  $('unitDetailSummary').innerHTML = `
+    <div><div class="muted" style="font-size:.75rem;">Transactions</div><div style="font-weight:800;font-size:1.1rem;">${txRows.length}</div></div>
+    <div><div class="muted" style="font-size:.75rem;">Total Paid (Transactions)</div><div style="font-weight:800;font-size:1.1rem;">${fmt(totalTx)}</div></div>
+    <div><div class="muted" style="font-size:.75rem;">Weekly Charges Logged</div><div style="font-weight:800;font-size:1.1rem;">${chargeRows.length}</div></div>
+    <div><div class="muted" style="font-size:.75rem;">Total Charged (Weekly)</div><div style="font-weight:800;font-size:1.1rem;">${fmt(totalCharged)}</div></div>
+  `;
+
+  const txTbody = document.querySelector('#unitDetailTxTable tbody');
+  txTbody.innerHTML = '';
+  $('unitDetailTxEmpty').style.display = txRows.length ? 'none' : 'block';
+  txRows.forEach(t=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${t.payment_date||'—'}</td><td>${t.unit_type||'—'}</td><td>${t.unit_location||'—'}</td>
+      <td>${fmt(t.amount)}</td><td>${t.notes||'—'}</td>
+      <td>${fmtHoldRange(t)}</td>
+      <td>${t.card_type?`${t.card_type} `:''}${t.card_last4?'••'+t.card_last4:''}${!t.card_type&&!t.card_last4?'—':''}</td>`;
+    txTbody.appendChild(tr);
+  });
+
+  const chargeTbody = document.querySelector('#unitDetailChargeTable tbody');
+  chargeTbody.innerHTML = '';
+  $('unitDetailChargeEmpty').style.display = chargeRows.length ? 'none' : 'block';
+  chargeRows.forEach(c=>{
+    const r = computeExpected(unit, c);
+    const tr = document.createElement('tr');
+    if(r && r.flagged) tr.classList.add('flagged');
+    tr.innerHTML = `<td>${c.week_start_date}</td><td>${c.agreement_number||'—'}</td>
+      <td>${fmt(c.actual_total_charged)}</td><td>${r?fmt(r.expectedSubtotal):'—'}</td>
+      <td>${r ? `${r.diff>=0?'+':''}${fmt(r.diff)}` : '—'}</td>
+      <td>${r ? `<span class="pill ${r.flagged?'pill-bad':'pill-ok'}">${r.flagged?'Flagged':'OK'}</span>` : '—'}</td>`;
+    chargeTbody.appendChild(tr);
+  });
+
+  $('unitDetailModalOverlay').classList.add('open');
+}
+function closeUnitDetailModal(){
+  $('unitDetailModalOverlay').classList.remove('open');
+}
+$('unitDetailClose').addEventListener('click', closeUnitDetailModal);
+$('unitDetailCloseBtn').addEventListener('click', closeUnitDetailModal);
+$('unitDetailModalOverlay').addEventListener('click', (e)=>{ if(e.target.id === 'unitDetailModalOverlay') closeUnitDetailModal(); });
+
+$('uFilterUnit').addEventListener('input', renderUnitsTable);
+
+// ---------- UNITS TABLE — COLUMN VISIBILITY ----------
+const UNIT_COLUMNS = [
+  { idx:1,  key:'status',        label:'Status' },
+  { idx:3,  key:'type',          label:'Type' },
+  { idx:4,  key:'vendor',        label:'Vendor' },
+  { idx:5,  key:'ymm',           label:'Year Make Model' },
+  { idx:6,  key:'vin',           label:'VIN' },
+  { idx:7,  key:'platestate',    label:'Plate and State' },
+  { idx:8,  key:'location',      label:'Location' },
+  { idx:9,  key:'licenseexp',    label:'License Exp' },
+  { idx:10, key:'notes',         label:'Notes' },
+  { idx:11, key:'weeklyrate',    label:'Weekly Rate' },
+  { idx:12, key:'includedmiles', label:'Included Miles' },
+  { idx:13, key:'permile',       label:'Per-Mile Rate' },
+  { idx:14, key:'fees',          label:'Fees ($/week)' },
+  { idx:15, key:'pmdue',         label:'Next PM Due' }
+];
+const UNIT_COL_STORAGE_KEY = 'usfl_unitsTableColumns';
+
+function loadUnitColumnState(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(UNIT_COL_STORAGE_KEY) || '{}');
+    const state = {};
+    UNIT_COLUMNS.forEach(c => { state[c.key] = saved[c.key] !== undefined ? saved[c.key] : true; });
+    return state;
+  } catch(e){
+    const state = {};
+    UNIT_COLUMNS.forEach(c => state[c.key] = true);
+    return state;
+  }
+}
+let UNIT_COL_STATE = loadUnitColumnState();
+
+function saveUnitColumnState(){
+  try { localStorage.setItem(UNIT_COL_STORAGE_KEY, JSON.stringify(UNIT_COL_STATE)); } catch(e){}
+}
+
+function applyUnitColumnVisibility(){
+  let css = '';
+  UNIT_COLUMNS.forEach(c => {
+    if(!UNIT_COL_STATE[c.key]){
+      css += `#unitsTable th:nth-child(${c.idx}), #unitsTable td:nth-child(${c.idx}){display:none;}\n`;
+    }
+  });
+  let styleTag = $('unitColStyle');
+  if(!styleTag){
+    styleTag = document.createElement('style');
+    styleTag.id = 'unitColStyle';
+    document.head.appendChild(styleTag);
+  }
+  styleTag.textContent = css;
+}
+
+function renderColPickerPanel(){
+  const panel = $('colPickerPanel');
+  panel.innerHTML = UNIT_COLUMNS.map(c => `
+    <label><input type="checkbox" data-colkey="${c.key}" ${UNIT_COL_STATE[c.key] ? 'checked' : ''}> ${c.label}</label>
+  `).join('') + `
+    <div class="col-picker-actions">
+      <button type="button" id="colPickerShowAll">Show all</button>
+      <button type="button" id="colPickerReset">Reset</button>
+    </div>
+  `;
+  panel.querySelectorAll('[data-colkey]').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      UNIT_COL_STATE[cb.dataset.colkey] = cb.checked;
+      saveUnitColumnState();
+      applyUnitColumnVisibility();
+    });
+  });
+  $('colPickerShowAll').addEventListener('click', ()=>{
+    UNIT_COLUMNS.forEach(c => UNIT_COL_STATE[c.key] = true);
+    saveUnitColumnState();
+    applyUnitColumnVisibility();
+    renderColPickerPanel();
+  });
+  $('colPickerReset').addEventListener('click', ()=>{
+    UNIT_COL_STATE = {};
+    UNIT_COLUMNS.forEach(c => UNIT_COL_STATE[c.key] = true);
+    saveUnitColumnState();
+    applyUnitColumnVisibility();
+    renderColPickerPanel();
+  });
+}
+
+renderColPickerPanel();
+applyUnitColumnVisibility();
+
+$('colPickerBtn').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  $('colPickerPanel').classList.toggle('open');
+});
+document.addEventListener('click', (e)=>{
+  const picker = $('colPicker');
+  if(picker && !picker.contains(e.target)) $('colPickerPanel').classList.remove('open');
+});
+
 $('unitForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const editId = $('uEditId').value;
@@ -898,10 +1088,16 @@ document.querySelectorAll('#unitSubtabs [data-unitsubtab]').forEach(btn=>{
 
 function renderUnitsTable(){
   $('uLocationList').innerHTML = knownLocations().map(l=>`<option value="${l}">`).join('');
+  $('unitFilterList').innerHTML = knownUnitNumbers().map(u=>`<option value="${u}">`).join('');
   $('unitSubtabCountTrucks').textContent = UNITS.filter(u=>TRUCK_TYPES.includes(u.unit_type)).length;
   $('unitSubtabCountTrailers').textContent = UNITS.filter(u=>TRAILER_TYPES.includes(u.unit_type)).length;
   const activeTypes = UNIT_SUBTAB === 'trucks' ? TRUCK_TYPES : TRAILER_TYPES;
-  const rows = UNITS.filter(u=>activeTypes.includes(u.unit_type));
+  const unitFilter = $('uFilterUnit').value.trim().toLowerCase();
+  // While searching, match across BOTH trucks and trailers regardless of which subtab is
+  // active — otherwise a trailer unit number typed in while on the Trucks subtab would
+  // never show up. With no search text, fall back to the normal subtab-only view.
+  const rows = UNITS.filter(u=>unitFilter ? true : activeTypes.includes(u.unit_type))
+    .filter(u=>!unitFilter || u.unit_number.toLowerCase().includes(unitFilter));
   const tbody = document.querySelector('#unitsTable tbody');
   tbody.innerHTML = '';
   $('unitsEmpty').style.display = rows.length ? 'none' : 'block';
@@ -912,12 +1108,19 @@ function renderUnitsTable(){
       <td>${fmt(u.weekly_base_rate)}</td><td>${u.included_miles ?? '—'}</td><td>$${Number(u.per_mile_rate).toFixed(4)}</td><td>${fmt(u.environmental_fee)}</td>
       <td>${pmDueCellHtml(u.next_pm_due_date)}</td>
       <td style="white-space:nowrap;">
+        <button class="btn btn-sm btn-outline" data-uview="${u.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">View</button>
         <button class="btn btn-sm btn-outline" data-uedit="${u.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Edit</button>
         <button class="btn btn-sm btn-outline" data-udel="${u.id}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Delete</button>
       </td>`;
     tbody.appendChild(tr);
   });
 
+  tbody.querySelectorAll('[data-uview]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const unit = UNITS.find(u=>u.id === btn.dataset.uview);
+      if(unit) openUnitDetailModal(unit);
+    });
+  });
   tbody.querySelectorAll('[data-uedit]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const unit = UNITS.find(u=>u.id === btn.dataset.uedit);
@@ -1045,8 +1248,14 @@ $('chargeForm').addEventListener('submit', async (e)=>{
 function renderHistory(){
   const tbody = document.querySelector('#historyTable tbody');
   tbody.innerHTML = '';
-  $('historyEmpty').style.display = CHARGES.length ? 'none' : 'block';
-  CHARGES.forEach(c=>{
+  const unitFilter = $('hFilterUnit').value.trim().toLowerCase();
+  const rows = CHARGES.filter(c=>{
+    if(!unitFilter) return true;
+    const unit = UNITS.find(u=>u.id === c.unit_id);
+    return unit && unit.unit_number.toLowerCase().includes(unitFilter);
+  });
+  $('historyEmpty').style.display = rows.length ? 'none' : 'block';
+  rows.forEach(c=>{
     const unit = UNITS.find(u=>u.id === c.unit_id);
     const r = computeExpected(unit, c);
     if(!r) return;
@@ -1060,6 +1269,7 @@ function renderHistory(){
     tbody.appendChild(tr);
   });
 }
+$('hFilterUnit').addEventListener('input', renderHistory);
 
 // ---------- REPORTS ----------
 function renderReports(){
@@ -1078,7 +1288,8 @@ function renderReports(){
     b.totalDiff += r.diff;
     b.totalMiles += Number(c.miles_driven)||0;
   });
-  const rows = Object.values(byUnit);
+  const unitFilter = $('rFilterUnit').value.trim().toLowerCase();
+  const rows = Object.values(byUnit).filter(b=>!unitFilter || b.unit.unit_number.toLowerCase().includes(unitFilter));
   $('reportsEmpty').style.display = rows.length ? 'none' : 'block';
   rows.forEach(b=>{
     const tr = document.createElement('tr');
@@ -1089,6 +1300,7 @@ function renderReports(){
     tbody.appendChild(tr);
   });
 }
+$('rFilterUnit').addEventListener('input', renderReports);
 
 // ---------- STATS ----------
 function renderStats(){
@@ -1379,9 +1591,86 @@ function autofillUnitInfo(unitInputVal, typeFieldId, locationFieldId){
     const loc = lastLocationForUnit(val);
     if(loc) locField.value = loc;
   }
+  return matchedUnit;
 }
 
-$('txqUnit').addEventListener('blur', ()=>{ autofillUnitInfo($('txqUnit').value, 'txqType', 'txqLocation'); updateTxqFlag(); });
+// "Vendor - Location" combos for the Quick Weekly Entry combined field, built from
+// every unit on file — e.g. "Penske - Las Vegas North", falling back to just the
+// vendor name if a unit has no location set.
+function knownVendorLocations(){
+  const set = new Set();
+  UNITS.forEach(u=>{
+    if(!u.vendor) return;
+    set.add(u.location ? `${u.vendor} - ${u.location}` : u.vendor);
+  });
+  UNIT_VENDORS.forEach(v=>set.add(v));
+  return [...set].sort();
+}
+
+// Parses the combined "Vendor - Location" field: vendor is whatever comes before the
+// first " - ", location is everything after. If there's no separator, treat the whole
+// value as the vendor (e.g. just "Penske" typed with no location yet).
+function parseVendorLocation(value){
+  const v = (value||'').trim();
+  if(!v) return { vendor: null, location: null };
+  const idx = v.indexOf(' - ');
+  if(idx === -1) return { vendor: v, location: null };
+  return { vendor: v.slice(0, idx).trim(), location: v.slice(idx + 3).trim() || null };
+}
+
+function updateTxqWeekFieldMode(){
+  const { vendor } = parseVendorLocation($('txqLocation').value);
+  const isPenske = (vendor||'').toLowerCase() === 'penske';
+  $('txqWeekFridayField').style.display = isPenske ? 'block' : 'none';
+  $('txqWeekAnyField').style.display = isPenske ? 'none' : 'block';
+  $('txqWeek').required = isPenske;
+  $('txqWeekAny').required = !isPenske;
+}
+$('txqLocation').addEventListener('input', updateTxqWeekFieldMode);
+updateTxqWeekFieldMode();
+
+let TXQ_AUTOFILLED_FOR = null; // unit number the Type/Location fields currently reflect
+
+// Runs on every keystroke (not just blur) so picking a suggestion from the unit
+// datalist — which fills the input's value but doesn't always trigger a real
+// blur — still refreshes Type/Vendor & Location right away, and so clearing the
+// unit number and typing a different vendor's unit resets the old values instead
+// of leaving them stuck on screen.
+function txqApplyUnitAutofill(){
+  const val = $('txqUnit').value.trim();
+  const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === val.toLowerCase());
+
+  if(matchedUnit){
+    // On file — its record is the source of truth, always overwrite.
+    // (Still editable by hand afterward if something needs a one-off correction.)
+    $('txqType').value = typeLabel(matchedUnit.unit_type);
+    $('txqLocation').value = matchedUnit.vendor
+      ? (matchedUnit.location ? `${matchedUnit.vendor} - ${matchedUnit.location}` : matchedUnit.vendor)
+      : '';
+    TXQ_AUTOFILLED_FOR = val.toLowerCase();
+    updateTxqWeekFieldMode();
+  } else if(TXQ_AUTOFILLED_FOR !== null && TXQ_AUTOFILLED_FOR !== val.toLowerCase()){
+    // The fields currently reflect a *different* unit we'd previously matched —
+    // this unit number no longer matches it, so clear the stale values.
+    $('txqType').value = '';
+    $('txqLocation').value = '';
+    TXQ_AUTOFILLED_FOR = null;
+    updateTxqWeekFieldMode();
+  }
+  updateTxqFlag();
+}
+$('txqUnit').addEventListener('input', txqApplyUnitAutofill);
+$('txqUnit').addEventListener('blur', ()=>{
+  // Fallback for units not on file: pull a location from transaction history,
+  // but only if nothing's there and we didn't just clear a stale autofill.
+  const val = $('txqUnit').value.trim();
+  const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === val.toLowerCase());
+  if(!matchedUnit && !$('txqLocation').value){
+    const loc = lastLocationForUnit(val);
+    if(loc){ $('txqLocation').value = loc; updateTxqWeekFieldMode(); }
+  }
+  updateTxqFlag();
+});
 
 // Live overcharge check for Quick Weekly Entry's due amount — no PM-down credit for
 // now (that's only known after the fact), so this just checks base rate + mileage.
@@ -1412,7 +1701,69 @@ function updateTxqFlag(){
     flag.textContent = `Matches expected ${fmt(expected)}.`;
   }
 }
-['txqMiles','txqDue'].forEach(id=>$(id).addEventListener('input', updateTxqFlag));
+['txqMiles','txqDue'].forEach(id=>$(id).addEventListener('input', ()=>{ updateTxqFlag(); updateSplitTotalCheck(); }));
+
+// ---------- QUICK WEEKLY ENTRY — SPLIT ACROSS MULTIPLE CARDS ----------
+let TXQ_SPLIT_IDX = 0;
+const TXQ_CARD_TYPES = ['', 'VISA', 'AMEX', 'MASTERCARD', 'DISCOVER'];
+
+function addSplitRow(){
+  const idx = TXQ_SPLIT_IDX++;
+  const row = document.createElement('div');
+  row.className = 'form-grid txq-split-row';
+  row.dataset.splitidx = idx;
+  row.style.cssText = 'grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:end;margin-bottom:8px;';
+  row.innerHTML = `
+    <div class="field"><label>Amount ($)</label><input type="number" step="0.01" class="txq-split-amount" placeholder="0.00"></div>
+    <div class="field"><label>Card Last 4</label><input type="text" class="txq-split-card4" maxlength="4"></div>
+    <div class="field"><label>Card Type</label>
+      <select class="txq-split-cardtype">${TXQ_CARD_TYPES.map(c=>`<option value="${c}">${c||'—'}</option>`).join('')}</select>
+    </div>
+    <button type="button" class="btn btn-sm btn-outline txq-split-remove" style="width:auto;height:36px;">Remove</button>
+  `;
+  $('txqSplitRows').appendChild(row);
+  row.querySelector('.txq-split-amount').addEventListener('input', updateSplitTotalCheck);
+  row.querySelector('.txq-split-remove').addEventListener('click', ()=>{ row.remove(); updateSplitTotalCheck(); });
+}
+
+function updateSplitTotalCheck(){
+  const box = $('txqSplitTotalCheck');
+  if(!$('txqSplitToggle').checked){ box.style.display = 'none'; return; }
+  const amounts = [...document.querySelectorAll('.txq-split-amount')].map(i=>Number(i.value)||0);
+  const splitTotal = amounts.reduce((s,a)=>s+a, 0);
+  const due = $('txqDue').value === '' ? null : Number($('txqDue').value);
+  box.style.display = 'block';
+  if(due === null){
+    box.style.color = 'var(--slate)';
+    box.textContent = `Split total: ${fmt(splitTotal)} — enter the final amount above to compare.`;
+  } else if(Math.abs(splitTotal - due) > 0.01){
+    box.style.color = '#a3720c';
+    box.textContent = `Split total ${fmt(splitTotal)} does not match the final amount ${fmt(due)} yet.`;
+  } else {
+    box.style.color = 'var(--green)';
+    box.textContent = `Split total ${fmt(splitTotal)} matches the final amount.`;
+  }
+}
+
+$('txqSplitToggle').addEventListener('change', ()=>{
+  const on = $('txqSplitToggle').checked;
+  $('txqSingleCard').style.display = on ? 'none' : 'grid';
+  $('txqSplitCards').style.display = on ? 'block' : 'none';
+  if(on && !document.querySelector('.txq-split-row')){
+    addSplitRow();
+    addSplitRow();
+  }
+  updateSplitTotalCheck();
+});
+$('txqAddSplitBtn').addEventListener('click', addSplitRow);
+
+function resetSplitCards(){
+  $('txqSplitToggle').checked = false;
+  $('txqSingleCard').style.display = 'grid';
+  $('txqSplitCards').style.display = 'none';
+  $('txqSplitRows').innerHTML = '';
+  $('txqSplitTotalCheck').style.display = 'none';
+}
 
 $('txQuickForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -1422,50 +1773,55 @@ $('txQuickForm').addEventListener('submit', async (e)=>{
   const matchedUnit = UNITS.find(u=>u.unit_number.toLowerCase() === unitNumber.toLowerCase());
   const typedType = $('txqType').value.trim();
   const unitType = typedType || (matchedUnit ? matchedUnit.unit_type : null);
+  const { vendor } = parseVendorLocation($('txqLocation').value);
   const location = $('txqLocation').value.trim() || null;
-  const weekStart = $('txqWeek').value;
+  const isPenske = (vendor||'').toLowerCase() === 'penske';
+  const weekStart = isPenske ? $('txqWeek').value : $('txqWeekAny').value;
   const dueAmount = $('txqDue').value === '' ? null : Number($('txqDue').value);
-  const rewriteAmount = $('txqRewrite').value === '' ? null : Number($('txqRewrite').value);
   const milesDriven = $('txqMiles').value === '' ? null : Number($('txqMiles').value);
-  const cardLast4 = $('txqCardLast4').value.trim() || null;
-  const cardType = $('txqCardType').value || null;
   const notes = $('txqNotes').value.trim();
+  const isSplit = $('txqSplitToggle').checked;
 
-  if(!weekStart){ alert('Select a week.'); return; }
-  if(dueAmount === null){ alert("Enter this week's due amount."); return; }
+  if(!weekStart){ alert(isPenske ? 'Select a week.' : 'Enter a payment date.'); return; }
+  if(dueAmount === null){ alert("Enter the final amount charged this week."); return; }
 
-  const rows = [{
-    unit_number: unitNumber,
-    unit_type: unitType,
-    unit_location: location,
-    payment_date: weekStart,
-    amount: dueAmount,
-    miles_driven: milesDriven,
-    notes: notes ? `Weekly Due — ${notes}` : 'Weekly Due',
-    card_last4: cardLast4,
-    card_type: cardType,
-    created_by: user ? user.id : null
-  }];
-
-  if(rewriteAmount !== null){
-    // Both transactions post the SAME Friday: the due amount settles the week
-    // that's ending, and the rewrite is the pre-auth for the week that starts
-    // that same day (weekStart -> weekStart+7).
-    const holdEnd = friWeekEnd(weekStart);
-    rows.push({
+  let rows;
+  if(isSplit){
+    const splitRows = [...document.querySelectorAll('.txq-split-row')].map(r=>({
+      amount: Number(r.querySelector('.txq-split-amount').value)||0,
+      card_last4: r.querySelector('.txq-split-card4').value.trim() || null,
+      card_type: r.querySelector('.txq-split-cardtype').value || null
+    })).filter(r=>r.amount > 0);
+    if(!splitRows.length){ alert('Enter an amount for at least one card.'); return; }
+    const splitTotal = splitRows.reduce((s,r)=>s+r.amount, 0);
+    if(Math.abs(splitTotal - dueAmount) > 0.01){
+      if(!confirm(`The card split totals ${fmt(splitTotal)} but the final amount charged is ${fmt(dueAmount)}. Save anyway?`)) return;
+    }
+    rows = splitRows.map((r, i)=>({
       unit_number: unitNumber,
       unit_type: unitType,
       unit_location: location,
       payment_date: weekStart,
-      amount: rewriteAmount,
-      notes: `Rewrite / Pre-Authorization for week of ${fmtUS(weekStart)}–${fmtUS(holdEnd)}` + (notes ? ` — ${notes}` : ''),
-      auth_hold_start: weekStart,
-      auth_hold_end: holdEnd,
-      auth_hold_amount: rewriteAmount,
-      card_last4: cardLast4,
-      card_type: cardType,
+      amount: r.amount,
+      miles_driven: i === 0 ? milesDriven : null,
+      notes: notes ? `Weekly Charge (card ${i+1} of ${splitRows.length}) — ${notes}` : `Weekly Charge (card ${i+1} of ${splitRows.length})`,
+      card_last4: r.card_last4,
+      card_type: r.card_type,
       created_by: user ? user.id : null
-    });
+    }));
+  } else {
+    rows = [{
+      unit_number: unitNumber,
+      unit_type: unitType,
+      unit_location: location,
+      payment_date: weekStart,
+      amount: dueAmount,
+      miles_driven: milesDriven,
+      notes: notes ? `Weekly Charge — ${notes}` : 'Weekly Charge',
+      card_last4: $('txqCardLast4').value.trim() || null,
+      card_type: $('txqCardType').value || null,
+      created_by: user ? user.id : null
+    }];
   }
 
   const btn = $('txQuickForm').querySelector('button[type=submit]');
@@ -1474,15 +1830,18 @@ $('txQuickForm').addEventListener('submit', async (e)=>{
   btn.disabled = false; btn.textContent = 'Save Week';
   if(error){ alert('Error saving: ' + error.message); return; }
 
-  // Fast re-entry for the next unit — keep card fields, they tend to repeat during a call.
+  // Fast re-entry for the next unit — keep card fields and the Friday week
+  // dropdown, they tend to repeat during a call.
+  TXQ_AUTOFILLED_FOR = null;
   $('txqUnit').value = '';
   $('txqType').value = '';
   $('txqLocation').value = '';
   $('txqMiles').value = '';
   $('txqDue').value = '';
-  $('txqRewrite').value = '';
   $('txqNotes').value = '';
+  $('txqWeekAny').value = '';
   $('txqFlag').style.display = 'none';
+  resetSplitCards();
   $('txqUnit').focus();
 
   await loadTransactions();
@@ -1490,152 +1849,12 @@ $('txQuickForm').addEventListener('submit', async (e)=>{
   renderTxRollup();
 });
 
-// ---------- PASTE WEEKLY INVOICE LIST ----------
-let WL_ROWS = [];
-
-$('wlDate').value = todayISO();
-
-function classifyInvoicePrefix(invoiceNum){
-  const p = invoiceNum.toUpperCase();
-  if(p.startsWith('RO')) return 'maintenance';   // repair/service invoice
-  return 'transaction';                          // rental, toll, or anything else
-}
-
-$('wlParseBtn').addEventListener('click', ()=>{
-  const raw = $('wlPaste').value;
-  const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
-  WL_ROWS = [];
-  lines.forEach(line=>{
-    const m = line.match(/([A-Za-z]{2,4}\d{3,7})\D+([\d,]+\.\d{2})/);
-    if(!m) return; // skip lines that don't look like "INVOICE# $amount"
-    const invoiceNum = m[1];
-    const amount = parseFloat(m[2].replace(/,/g,''));
-    WL_ROWS.push({
-      invoice_number: invoiceNum,
-      amount,
-      unit_number: '',
-      route: classifyInvoicePrefix(invoiceNum),
-      notes: ''
-    });
-  });
-  if(!WL_ROWS.length){
-    alert('Could not find any "INVOICE# $amount" lines. Check the format and try again.');
-    return;
-  }
-  renderWlTable();
-});
-
-function renderWlTable(){
-  const card = $('wlReviewCard');
-  const tbody = document.querySelector('#wlTable tbody');
-  tbody.innerHTML = '';
-  card.style.display = WL_ROWS.length ? 'block' : 'none';
-  $('wlCount').textContent = WL_ROWS.length;
-  $('wlTotal').textContent = fmt(WL_ROWS.reduce((s,r)=>s+(Number(r.amount)||0),0));
-
-  WL_ROWS.forEach((row, idx)=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${row.invoice_number}</strong></td>
-      <td><input type="number" step="0.01" data-idx="${idx}" data-field="amount" value="${row.amount}" style="width:90px;"></td>
-      <td><input type="text" data-idx="${idx}" data-field="unit_number" value="${row.unit_number}" placeholder="fill in later" style="width:100px;"></td>
-      <td>
-        <select data-idx="${idx}" data-field="route">
-          <option value="transaction" ${row.route==='transaction'?'selected':''}>Transaction Log</option>
-          <option value="maintenance" ${row.route==='maintenance'?'selected':''}>Maintenance</option>
-        </select>
-      </td>
-      <td><input type="text" data-idx="${idx}" data-field="notes" value="${row.notes}" placeholder="optional" style="width:140px;"></td>
-      <td><button class="btn btn-sm btn-outline" data-wlremove="${idx}" style="width:auto;height:30px;padding:0 10px;font-size:.75rem;">Remove</button></td>
-    `;
-    tbody.appendChild(tr);
-  });
-
-  tbody.querySelectorAll('[data-wlremove]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      WL_ROWS.splice(Number(btn.dataset.wlremove), 1);
-      renderWlTable();
-    });
-  });
-  tbody.querySelectorAll('input, select').forEach(el=>{
-    el.addEventListener('change', (e)=>{
-      const idx = Number(e.target.dataset.idx);
-      const field = e.target.dataset.field;
-      let val = e.target.value;
-      if(field === 'amount') val = Number(val)||0;
-      WL_ROWS[idx][field] = val;
-      if(field==='amount') renderWlTable();
-    });
-  });
-}
-
-$('wlSaveBtn').addEventListener('click', async ()=>{
-  if(!WL_ROWS.length) return;
-  const { data:{ user } } = await sb.auth.getUser();
-  const vendor = $('wlVendor').value.trim() || null;
-  const date = $('wlDate').value || todayISO();
-
-  const txRows = [];
-  const maintRows = [];
-  WL_ROWS.forEach(r=>{
-    // Unit # isn't in these emails — fall back to the invoice # as a placeholder so the
-    // NOT NULL constraint is satisfied, and flag it clearly so it's easy to find and fix later.
-    const unitPlaceholder = r.unit_number.trim() || `NEEDS-UNIT-${r.invoice_number}`;
-    const noteText = (r.notes ? r.notes + ' — ' : '') + (r.unit_number.trim() ? '' : '⚠ unit # not identified, see invoice ') + r.invoice_number;
-    if(r.route === 'maintenance'){
-      maintRows.push({
-        unit_number: unitPlaceholder,
-        service_date: date,
-        service_type: 'Repair',
-        vendor,
-        description: noteText,
-        amount: r.amount,
-        days_down: 0,
-        invoice_number: r.invoice_number,
-        created_by: user ? user.id : null
-      });
-    } else {
-      txRows.push({
-        unit_number: unitPlaceholder,
-        unit_location: vendor,
-        payment_date: date,
-        amount: r.amount,
-        notes: noteText,
-        created_by: user ? user.id : null
-      });
-    }
-  });
-
-  $('wlSaveBtn').disabled = true; $('wlSaveBtn').textContent = 'Saving...';
-  if(txRows.length){
-    const { error } = await sb.from('equipment_transactions').insert(txRows);
-    if(error){ $('wlSaveBtn').disabled = false; $('wlSaveBtn').textContent = 'Save All'; alert('Error saving transactions: ' + error.message); return; }
-  }
-  if(maintRows.length){
-    const { error } = await sb.from('equipment_maintenance').insert(maintRows);
-    if(error){ $('wlSaveBtn').disabled = false; $('wlSaveBtn').textContent = 'Save All'; alert('Error saving maintenance records: ' + error.message); return; }
-  }
-  $('wlSaveBtn').disabled = false; $('wlSaveBtn').textContent = 'Save All';
-  alert(`Saved ${WL_ROWS.length} record(s). Rows with no unit # are tagged "NEEDS-UNIT-<invoice#>" — search for that to find and fix them once you know the unit.`);
-
-  WL_ROWS = [];
-  renderWlTable();
-  $('wlPaste').value = '';
-  $('wlDate').value = todayISO();
-
-  await loadTransactions();
-  await loadMaintenance();
-  renderTransactions();
-  renderTxRollup();
-  renderMaintenance();
-  renderMaintRollup();
-});
-
 let EDIT_TX_ID = null;
 
 function renderTransactions(){
   // Keep the location/unit datalists and card filter fresh
   $('txLocationList').innerHTML = knownLocations().map(l=>`<option value="${l}">`).join('');
+  $('txqVendorLocationList').innerHTML = knownVendorLocations().map(l=>`<option value="${l}">`).join('');
   $('txqUnitList').innerHTML = knownUnitNumbers().map(u=>`<option value="${u}">${unitLabel(u)}</option>`).join('');
   const cardFilter = $('txFilterCard');
   const prevCardVal = cardFilter.value;
